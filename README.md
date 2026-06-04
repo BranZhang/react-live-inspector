@@ -12,8 +12,8 @@ Power of [Browser DevTools](https://developers.google.com/web/tools/chrome-devto
 
 This fork targets the following improvements. Status reflects what is actually implemented today:
 
-1. **Expand/collapse state decoupled from `data`** — ✅ implemented. Refreshing the data no longer reopens nodes the user has collapsed.
-2. **Node-level memoization** — 🚧 planned. The intent is that only the nodes whose value actually changed re-render. The memoization is partially in place but currently defeated (e.g. a fresh `dataIterator` is created on every render), so it does not yet take effect.
+1. **Expand/collapse state decoupled from `data`** — ✅ implemented. `expandLevel`/`expandPaths` are applied only on mount (and when those props change), not re-asserted on every `data` change, so refreshing the data no longer reopens nodes the user has collapsed. See the _"Verify - collapse persists under refresh"_ Storybook story.
+2. **Node-level memoization** — 🚧 partial. Tree nodes are wrapped in `React.memo` and the `dataIterator` identity is now stable across renders (previously a fresh iterator was created on every render, which defeated memoization). Subtrees whose `data` reference is unchanged are now skipped; nodes whose value object is recreated each tick still re-render, so the win is not yet complete.
 3. **Safe "expand all"** — 🚧 planned. Avoid the upstream O(n²) cost of large `expandLevel` values.
 4. **Large-data support** — 🚧 planned. Truncation/paging and/or virtualization so expanding very large arrays/objects does not freeze the UI. Not implemented yet.
 
@@ -187,7 +187,8 @@ Type of inspectors:
 Performance (this fork):
 
 - [x] Expand/collapse state decoupled from `data`
-- [ ] Node-level memoization (effective)
+- [x] Stable `dataIterator` identity (prerequisite for memoization)
+- [ ] Node-level memoization (fully effective)
 - [ ] Safe "expand all" for large `expandLevel`
 - [ ] Large-data support (truncation/paging and/or virtualization)
 
