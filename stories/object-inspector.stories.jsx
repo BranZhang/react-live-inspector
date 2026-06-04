@@ -92,9 +92,8 @@ const makeRichTree = (depth, breadth, counter = { n: 0 }) => {
 const NODES_PER_LEAF = 76;
 const cache = {};
 const getDataByNodes = (targetNodes) =>
-  (cache[targetNodes] ??= Array.from(
-    { length: Math.max(1, Math.round(targetNodes / NODES_PER_LEAF)) },
-    (_, i) => makeRichLeaf(i),
+  (cache[targetNodes] ??= Array.from({ length: Math.max(1, Math.round(targetNodes / NODES_PER_LEAF)) }, (_, i) =>
+    makeRichLeaf(i)
   ));
 
 // Fully expand everything. The deepest path (e.g. $.<i>.lookup.two.deep.value)
@@ -104,30 +103,22 @@ const getDataByNodes = (targetNodes) =>
 const FULLY_EXPANDED = 12;
 
 export const PerfNodes100 = {
-  render: () => (
-    <Inspector data={getDataByNodes(100)} expandLevel={FULLY_EXPANDED} />
-  ),
+  render: () => <Inspector data={getDataByNodes(100)} expandLevel={FULLY_EXPANDED} />,
   name: 'Perf - ~100 rendered nodes',
 };
 
 export const PerfNodes1k = {
-  render: () => (
-    <Inspector data={getDataByNodes(1000)} expandLevel={FULLY_EXPANDED} />
-  ),
+  render: () => <Inspector data={getDataByNodes(1000)} expandLevel={FULLY_EXPANDED} />,
   name: 'Perf - ~1k rendered nodes',
 };
 
 export const PerfNodes10k = {
-  render: () => (
-    <Inspector data={getDataByNodes(10000)} expandLevel={FULLY_EXPANDED} />
-  ),
+  render: () => <Inspector data={getDataByNodes(10000)} expandLevel={FULLY_EXPANDED} />,
   name: 'Perf - ~10k rendered nodes',
 };
 
 export const PerfNodes100k = {
-  render: () => (
-    <Inspector data={getDataByNodes(100000)} expandLevel={FULLY_EXPANDED} />
-  ),
+  render: () => <Inspector data={getDataByNodes(100000)} expandLevel={FULLY_EXPANDED} />,
   name: 'Perf - ~100k rendered nodes',
 };
 
@@ -615,7 +606,7 @@ const makeLiveTree = (depth, breadth, t, c = { n: 0 }) => {
     return {
       id: i,
       // values that change every tick:
-      value: +(Math.sin((i + t) / 5)).toFixed(4),
+      value: +Math.sin((i + t) / 5).toFixed(4),
       speed: (i * 7 + t) % 100,
       flag: (i + t) % 2 === 0,
       label: `node-${i}`,
@@ -623,8 +614,7 @@ const makeLiveTree = (depth, breadth, t, c = { n: 0 }) => {
     };
   }
   const node = { id: c.n++, children: [] };
-  for (let b = 0; b < breadth; b++)
-    node.children.push(makeLiveTree(depth - 1, breadth, t, c));
+  for (let b = 0; b < breadth; b++) node.children.push(makeLiveTree(depth - 1, breadth, t, c));
   return node;
 };
 
@@ -668,16 +658,12 @@ const HighFrequencyDemo = ({ hz = 10, depth = 3, breadth = 4, expandLevel = 12 }
           padding: '8px 12px',
           marginBottom: 8,
           borderRadius: 4,
-        }}
-      >
-        refresh: {hz} Hz &nbsp;|&nbsp; tree: {depth}×{breadth} (~{leaves} leaves) &nbsp;|&nbsp;
-        commits: {s.commits} &nbsp;|&nbsp; last: {s.last.toFixed(2)} ms &nbsp;|&nbsp;
-        avg: {avg} ms &nbsp;|&nbsp; max: {s.max.toFixed(2)} ms
+        }}>
+        refresh: {hz} Hz &nbsp;|&nbsp; tree: {depth}×{breadth} (~{leaves} leaves) &nbsp;|&nbsp; commits: {s.commits}{' '}
+        &nbsp;|&nbsp; last: {s.last.toFixed(2)} ms &nbsp;|&nbsp; avg: {avg} ms &nbsp;|&nbsp; max: {s.max.toFixed(2)} ms
         <br />
         <span style={{ color: s.last > 1000 / hz ? '#f55' : '#0f0' }}>
-          {s.last > 1000 / hz
-            ? '⚠ commit longer than frame budget — dropping frames'
-            : 'within frame budget'}
+          {s.last > 1000 / hz ? '⚠ commit longer than frame budget — dropping frames' : 'within frame budget'}
         </span>
       </div>
       <React.Profiler id="inspector" onRender={onRender}>

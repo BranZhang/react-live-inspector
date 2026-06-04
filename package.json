@@ -43,10 +43,7 @@
     "dist/**/*",
     "README.md",
     "LICENSE",
-    "HISTORY.md",
-    ".js",
-    ".mjs",
-    ".d.ts"
+    "HISTORY.md"
   ],
   "scripts": {
     "build": "tsup",

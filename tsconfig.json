@@ -4,7 +4,7 @@
     "target": "ES2022",
     "allowJs": true,
     "checkJs": false,
-    "jsx": "react",
+    "jsx": "react-jsx",
     "rootDir": ".",
     "removeComments": true,
     "noImplicitAny": false,
@@ -12,7 +12,7 @@
     "pretty": true,
     "skipLibCheck": true,
     "strict": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "esModuleInterop": true
   },
   "include": ["./src/**/*"],

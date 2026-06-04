@@ -1,4 +1,4 @@
-import React, { FC, ReactChild } from 'react';
+import React, { FC, ReactElement } from 'react';
 
 import { useStyles } from '../styles';
 import { shouldInline } from './shouldInline';
@@ -11,7 +11,7 @@ const OpenTag: FC<any> = ({ tagName, attributes, styles }) => {
 
       {(() => {
         if (attributes) {
-          const attributeNodes: ReactChild[] = [];
+          const attributeNodes: ReactElement[] = [];
           for (let i = 0; i < attributes.length; i++) {
             const attribute = attributes[i];
             attributeNodes.push(
