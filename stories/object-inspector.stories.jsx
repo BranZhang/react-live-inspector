@@ -682,3 +682,65 @@ export const PerfRefresh10HzLarge = {
   render: () => <HighFrequencyDemo hz={10} depth={4} breadth={5} />,
   name: 'Perf - live refresh 10 Hz (~6.7k nodes)',
 };
+
+// ---- Verify: collapse state survives high-frequency refresh ----
+// Regression demo for the "expandPaths/expandLevel re-applied on every data
+// change" bug. The tree starts fully expanded and its values change ~3×/sec.
+// Collapse any node (click its arrow) and watch it STAY collapsed across
+// refreshes. Before the fix it would pop back open on the very next tick.
+const CollapsePersistenceDemo = ({ hz = 3 }) => {
+  const [tick, setTick] = React.useState(0);
+
+  React.useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), Math.round(1000 / hz));
+    return () => clearInterval(id);
+  }, [hz]);
+
+  // New object reference every tick, same shape, changing values.
+  const data = React.useMemo(
+    () => ({
+      tick,
+      updatedAt: new Date(),
+      user: {
+        id: 1,
+        name: 'Ada',
+        score: +Math.sin(tick / 3).toFixed(4),
+        prefs: { theme: tick % 2 ? 'dark' : 'light', volume: tick % 11 },
+      },
+      metrics: {
+        cpu: (tick * 7) % 100,
+        mem: (tick * 13) % 100,
+        queue: [tick, tick + 1, tick + 2],
+      },
+      tags: ['alpha', 'beta', { nested: true, level: tick % 5 }],
+    }),
+    [tick]
+  );
+
+  return (
+    <div>
+      <div
+        style={{
+          font: '12px/1.6 monospace',
+          background: '#111',
+          color: '#0f0',
+          padding: '8px 12px',
+          marginBottom: 8,
+          borderRadius: 4,
+        }}>
+        refresh: {hz} Hz &nbsp;|&nbsp; tick: {tick}
+        <br />
+        <span style={{ color: '#fd0' }}>
+          Test: collapse e.g. <code>user</code> or <code>metrics</code>, then watch it stay collapsed while values keep
+          changing. (Before the fix it re-opened every tick.)
+        </span>
+      </div>
+      <Inspector data={data} expandLevel={4} />
+    </div>
+  );
+};
+
+export const VerifyCollapsePersistsUnderRefresh = {
+  render: () => <CollapsePersistenceDemo hz={3} />,
+  name: 'Verify - collapse persists under refresh',
+};
