@@ -1,4 +1,4 @@
-import React, { useContext, useCallback, useLayoutEffect, useState, memo } from 'react';
+import React, { useContext, useCallback, useLayoutEffect, useRef, useState, memo } from 'react';
 import { ExpandedPathsContext } from './ExpandedPathsContext';
 import { TreeNode } from './TreeNode';
 import { DEFAULT_ROOT_PATH, hasChildNodes, getExpandedPaths } from './pathUtils';
@@ -76,12 +76,20 @@ export const TreeView = memo(function TreeView({
   const stateAndSetter = useState({});
   const [, setExpandedPaths] = stateAndSetter;
 
+  // Keep the latest data available without making it an effect dependency.
+  const dataRef = useRef(data);
+  dataRef.current = data;
+
+  // Apply expandLevel/expandPaths only on mount and when those props (or the
+  // iterator identity) change — NOT on every `data` change. Re-asserting on each
+  // refresh would re-expand paths the user has collapsed, breaking the
+  // "expand/collapse state decoupled from data" guarantee under live refresh.
   useLayoutEffect(
     () =>
       setExpandedPaths((prevExpandedPaths) =>
-        getExpandedPaths(data, dataIterator, expandPaths, expandLevel, prevExpandedPaths)
+        getExpandedPaths(dataRef.current, dataIterator, expandPaths, expandLevel, prevExpandedPaths)
       ),
-    [data, dataIterator, expandPaths, expandLevel]
+    [dataIterator, expandPaths, expandLevel]
   );
 
   return (

@@ -1,4 +1,4 @@
-import React, { FC } from 'react';
+import React, { FC, useMemo } from 'react';
 import { TreeView } from '../tree-view/TreeView';
 
 import { ObjectRootLabel } from './ObjectRootLabel';
@@ -98,7 +98,13 @@ const defaultNodeRenderer = ({ depth, name, data, isNonenumerable }: any) =>
  * Tree-view for objects
  */
 const ObjectInspector: FC<any> = ({ showNonenumerable = false, sortObjectKeys, nodeRenderer, ...treeViewProps }) => {
-  const dataIterator = createIterator(showNonenumerable, sortObjectKeys);
+  // Memoize the iterator so its identity is stable across re-renders. A fresh
+  // iterator on every render would re-trigger TreeView's expand effect (and
+  // defeat node memoization) even when only `data` values change.
+  const dataIterator = useMemo(() => createIterator(showNonenumerable, sortObjectKeys), [
+    showNonenumerable,
+    sortObjectKeys,
+  ]);
   const renderer = nodeRenderer ? nodeRenderer : defaultNodeRenderer;
 
   return <TreeView nodeRenderer={renderer} dataIterator={dataIterator} {...treeViewProps} />;
