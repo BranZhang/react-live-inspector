@@ -10,13 +10,14 @@ Power of [Browser DevTools](https://developers.google.com/web/tools/chrome-devto
 
 `react-live-inspector` is a fork of [`react-inspector`](https://github.com/storybookjs/react-inspector) (MIT), tuned for **scenarios where `data` refreshes at high frequency** (e.g. live/streaming previews). The upstream library re-renders the whole tree whenever the `data` reference changes and resets the user's expand/collapse state on every update, which becomes a performance and UX problem under continuous refresh.
 
-This fork focuses on three improvements:
+This fork targets the following improvements. Status reflects what is actually implemented today:
 
-1. **Node-level memoization** — only the nodes whose value actually changed re-render, so high-frequency refresh stays smooth.
-2. **Expand/collapse state decoupled from `data`** — refreshing the data no longer reopens nodes the user has collapsed.
-3. **Safe "expand all"** — avoids the upstream O(n²) cost of large `expandLevel` values.
+1. **Expand/collapse state decoupled from `data`** — ✅ implemented. Refreshing the data no longer reopens nodes the user has collapsed.
+2. **Node-level memoization** — 🚧 planned. The intent is that only the nodes whose value actually changed re-render. The memoization is partially in place but currently defeated (e.g. a fresh `dataIterator` is created on every render), so it does not yet take effect.
+3. **Safe "expand all"** — 🚧 planned. Avoid the upstream O(n²) cost of large `expandLevel` values.
+4. **Large-data support** — 🚧 planned. Truncation/paging and/or virtualization so expanding very large arrays/objects does not freeze the UI. Not implemented yet.
 
-> **The component API is kept fully compatible with `react-inspector`.** Existing props and components work unchanged — migration is a drop-in replacement, and the optimizations above are the default behavior.
+> **The component API is kept fully compatible with `react-inspector`.** Existing props and components work unchanged — migration is a drop-in replacement.
 
 ![''](https://storybookjs.github.io/react-inspector/objectinspector.png)
 
@@ -182,6 +183,13 @@ Type of inspectors:
 - [x] Table style
   - [ ] Column resizer
 - [ ] Group style
+
+Performance (this fork):
+
+- [x] Expand/collapse state decoupled from `data`
+- [ ] Node-level memoization (effective)
+- [ ] Safe "expand all" for large `expandLevel`
+- [ ] Large-data support (truncation/paging and/or virtualization)
 
 ## Contribution
 
