@@ -15,14 +15,11 @@ This fork targets the following improvements. Status reflects what is actually i
 **Features**
 
 - **Large-data support (full virtualization)** — ✅ implemented. The tree is now **fully virtualized** (via [`@tanstack/react-virtual`](https://tanstack.com/virtual)) regardless of node count: only the rows currently on screen are mounted, so expanding very large arrays/objects no longer freezes the UI, and a `data` refresh only re-renders the handful of visible rows (the whole-tree re-render that node-level memoization used to target is no longer possible). The component now owns an internal scroll container — see the new `height`/`maxHeight`/`rowHeight`/`overscan` props below. Trade-off: rows are rendered single-line (long values no longer wrap).
+- **Safe "expand all"** — ✅ implemented. A large `expandLevel` is resolved in a single bounded tree walk instead of re-walking the tree once per level, eliminating the upstream O(level × n) cost of fully expanding a deep tree (this is independent of rendering, so virtualization alone does not address it).
 
 **Fixes (vs. upstream)**
 
 - **Expand/collapse state decoupled from `data`** — ✅ implemented. `expandLevel`/`expandPaths` are applied only on mount (and when those props change), not re-asserted on every `data` change, so refreshing the data no longer reopens nodes the user has collapsed. See the _"Verify - collapse persists under refresh"_ Storybook story.
-
-**Planned**
-
-- **Safe "expand all"** — 🚧 planned. Avoid the upstream O(n²) cost of large `expandLevel` values (independent of rendering, so virtualization does not address it).
 
 > **The component API is kept fully compatible with `react-inspector`.** Existing props and components work unchanged — migration is a drop-in replacement.
 
@@ -209,7 +206,7 @@ Performance (this fork):
 - [x] Expand/collapse state decoupled from `data`
 - [x] Stable `dataIterator` identity (prerequisite for the flatten/expand memoization)
 - [x] Large-data support (full virtualization via `@tanstack/react-virtual` — supersedes node-level memoization, since only visible rows render)
-- [ ] Safe "expand all" for large `expandLevel`
+- [x] Safe "expand all" for large `expandLevel`
 
 ## Contribution
 

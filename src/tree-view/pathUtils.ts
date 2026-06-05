@@ -14,12 +14,32 @@ export const wildcardPathsFromLevel = (level) => {
 };
 
 export const getExpandedPaths = (data, dataIterator, expandPaths, expandLevel, prevExpandedPaths) => {
+  const expandedPaths: string[] = [];
+
+  // Safe "expand all": expand every node up to `expandLevel` in a single
+  // bounded tree walk. The upstream approach builds one wildcard pattern per
+  // level ($, $.*, $.*.*, …) and re-walks the tree from the root for each,
+  // which is O(level × n) — quadratic for a fully-expanded deep tree. Walking
+  // once and stopping at `expandLevel` visits each in-range node exactly once.
+  if (expandLevel > 0) {
+    const walkLevel = (curData, curPath, depth) => {
+      if (depth >= expandLevel || !hasChildNodes(curData, dataIterator)) {
+        return;
+      }
+      expandedPaths.push(curPath);
+      for (const { name, data: childData } of dataIterator(curData)) {
+        walkLevel(childData, `${curPath}.${name}`, depth + 1);
+      }
+    };
+    walkLevel(data, DEFAULT_ROOT_PATH, 0);
+  }
+
+  // Explicit expandPaths (may contain wildcards) are typically few and short,
+  // so the per-path walk below is fine for them.
   const wildcardPaths: string[] = ([] as string[])
-    .concat(wildcardPathsFromLevel(expandLevel))
     .concat(expandPaths)
     .filter((path) => typeof path === 'string'); // could be undefined
 
-  const expandedPaths: string[] = [];
   wildcardPaths.forEach((wildcardPath) => {
     const keyPaths = wildcardPath.split('.');
     const populatePaths = (curData, curPath, depth) => {
