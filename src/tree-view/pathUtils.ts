@@ -36,9 +36,7 @@ export const getExpandedPaths = (data, dataIterator, expandPaths, expandLevel, p
 
   // Explicit expandPaths (may contain wildcards) are typically few and short,
   // so the per-path walk below is fine for them.
-  const wildcardPaths: string[] = ([] as string[])
-    .concat(expandPaths)
-    .filter((path) => typeof path === 'string'); // could be undefined
+  const wildcardPaths: string[] = ([] as string[]).concat(expandPaths).filter((path) => typeof path === 'string'); // could be undefined
 
   wildcardPaths.forEach((wildcardPath) => {
     const keyPaths = wildcardPath.split('.');
