@@ -683,6 +683,101 @@ export const PerfRefresh10HzLarge = {
   name: 'Perf - live refresh 10 Hz (~6.7k nodes)',
 };
 
+// ---- Perf: realistic partial refresh (fresh object each tick, ~1/3 changes) ----
+// This mirrors real live data (e.g. a websocket JSON payload): every tick is a
+// BRAND-NEW object (so reference-equality memo cannot trivially help), but only
+// a fraction of the leaves actually change value. Structural sharing reconciles
+// the fresh object against the previous frame so the unchanged ~2/3 of subtrees
+// keep a stable reference and are skipped by `React.memo`. Compare the Profiler
+// `avg`/`max` here against the all-changing PerfRefresh10HzLarge story above.
+
+// Most leaves are constant; only ~1/3 (by id) change each tick. The whole tree
+// is still freshly allocated every call — nothing is reference-stable on input.
+const makePartialLiveTree = (depth, breadth, t, c = { n: 0 }) => {
+  if (depth <= 0) {
+    const i = c.n++;
+    const changes = i % 3 === 0; // ~1/3 of leaves are "hot"
+    return {
+      id: i,
+      label: `node-${i}`,
+      // constant across ticks:
+      base: i * 2,
+      tag: `static-${i % 7}`,
+      // changes only for hot leaves:
+      value: changes ? +Math.sin((i + t) / 5).toFixed(4) : +Math.sin(i / 5).toFixed(4),
+      speed: changes ? (i * 7 + t) % 100 : (i * 7) % 100,
+    };
+  }
+  const node = { id: c.n++, children: [] };
+  for (let b = 0; b < breadth; b++) node.children.push(makePartialLiveTree(depth - 1, breadth, t, c));
+  return node;
+};
+
+const PartialRefreshDemo = ({ hz = 10, depth = 4, breadth = 5, expandLevel = 12, structuralSharing = true }) => {
+  const [tick, setTick] = React.useState(0);
+  const stats = React.useRef({ commits: 0, total: 0, last: 0, max: 0 });
+  const [, force] = React.useState(0);
+
+  React.useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), Math.round(1000 / hz));
+    return () => clearInterval(id);
+  }, [hz]);
+
+  const data = React.useMemo(() => makePartialLiveTree(depth, breadth, tick), [tick, depth, breadth]);
+
+  const onRender = (_id, _phase, actualDuration) => {
+    const s = stats.current;
+    s.commits += 1;
+    s.total += actualDuration;
+    s.last = actualDuration;
+    s.max = Math.max(s.max, actualDuration);
+  };
+
+  React.useEffect(() => {
+    const id = setInterval(() => force((x) => x + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const s = stats.current;
+  const avg = s.commits ? (s.total / s.commits).toFixed(2) : '0';
+  const leaves = Math.pow(breadth, depth);
+
+  return (
+    <div>
+      <div
+        style={{
+          font: '12px/1.6 monospace',
+          background: '#111',
+          color: '#0f0',
+          padding: '8px 12px',
+          marginBottom: 8,
+          borderRadius: 4,
+        }}>
+        refresh: {hz} Hz &nbsp;|&nbsp; tree: {depth}×{breadth} (~{leaves} leaves, ~1/3 changing) &nbsp;|&nbsp;
+        structuralSharing: {String(structuralSharing)} &nbsp;|&nbsp; commits: {s.commits} &nbsp;|&nbsp; last:{' '}
+        {s.last.toFixed(2)} ms &nbsp;|&nbsp; avg: {avg} ms &nbsp;|&nbsp; max: {s.max.toFixed(2)} ms
+        <br />
+        <span style={{ color: s.last > 1000 / hz ? '#f55' : '#0f0' }}>
+          {s.last > 1000 / hz ? '⚠ commit longer than frame budget — dropping frames' : 'within frame budget'}
+        </span>
+      </div>
+      <React.Profiler id="inspector" onRender={onRender}>
+        <Inspector data={data} expandLevel={expandLevel} structuralSharing={structuralSharing} />
+      </React.Profiler>
+    </div>
+  );
+};
+
+export const PerfPartialRefreshShared = {
+  render: () => <PartialRefreshDemo hz={10} depth={4} breadth={5} structuralSharing={true} />,
+  name: 'Perf - partial refresh, structural sharing ON',
+};
+
+export const PerfPartialRefreshUnshared = {
+  render: () => <PartialRefreshDemo hz={10} depth={4} breadth={5} structuralSharing={false} />,
+  name: 'Perf - partial refresh, structural sharing OFF (baseline)',
+};
+
 // ---- Verify: collapse state survives high-frequency refresh ----
 // Regression demo for the "expandPaths/expandLevel re-applied on every data
 // change" bug. The tree starts fully expanded and its values change ~3×/sec.

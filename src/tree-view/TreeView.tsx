@@ -1,11 +1,18 @@
-import React, { useContext, useCallback, useLayoutEffect, useRef, useState, memo } from 'react';
+import React, { useContext, useCallback, useLayoutEffect, useMemo, useRef, useState, memo } from 'react';
 import { ExpandedPathsContext } from './ExpandedPathsContext';
 import { TreeNode } from './TreeNode';
 import { DEFAULT_ROOT_PATH, hasChildNodes, getExpandedPaths } from './pathUtils';
 
 import { useStyles } from '../styles';
 
-const ConnectedTreeNode = memo(function ConnectedTreeNode(props: Record<string, any>) {
+// NOTE: the inner function is intentionally named `ConnectedTreeNodeImpl`, not
+// `ConnectedTreeNode`. A named function expression binds its own name in its
+// scope, which would SHADOW the outer `const ConnectedTreeNode` (the memoized
+// wrapper). The recursive `<ConnectedTreeNode/>` below must resolve to the
+// memoized const — if it resolved to the raw inner function, every child node
+// would render UNMEMOIZED and `React.memo` (plus structural sharing) would have
+// no effect at all.
+const ConnectedTreeNode = memo(function ConnectedTreeNodeImpl(props: Record<string, any>) {
   const { data, dataIterator, path, depth, nodeRenderer } = props;
   const [expandedPaths, setExpandedPaths] = useContext(ExpandedPathsContext);
   const nodeHasChildNodes = hasChildNodes(data, dataIterator);
@@ -73,8 +80,19 @@ export const TreeView = memo(function TreeView({
   expandLevel,
 }: Record<string, any>) {
   const styles = useStyles('TreeView');
-  const stateAndSetter = useState({});
-  const [, setExpandedPaths] = stateAndSetter;
+  const [expandedPaths, setExpandedPaths] = useState<Record<string, boolean>>({});
+
+  // Stabilize the context value so it only changes when `expandedPaths` actually
+  // changes (a user expand/collapse) — NOT on every render. `useState` returns a
+  // fresh `[state, setter]` array each render; passing that straight into the
+  // Provider made the context value identity change on every `data` tick, which
+  // force-re-renders ALL context consumers and defeats `React.memo` on the nodes.
+  // With this memo, a data-only refresh leaves the context value untouched, so
+  // memoized subtrees whose `data` reference is unchanged are skipped.
+  const contextValue = useMemo<[Record<string, boolean>, typeof setExpandedPaths]>(
+    () => [expandedPaths, setExpandedPaths],
+    [expandedPaths]
+  );
 
   // Keep the latest data available without making it an effect dependency.
   const dataRef = useRef(data);
@@ -93,7 +111,7 @@ export const TreeView = memo(function TreeView({
   );
 
   return (
-    <ExpandedPathsContext.Provider value={stateAndSetter}>
+    <ExpandedPathsContext.Provider value={contextValue}>
       <ol role="tree" style={styles.treeViewOutline}>
         <ConnectedTreeNode
           name={name}

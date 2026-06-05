@@ -1,5 +1,6 @@
-import React, { FC, useMemo } from 'react';
+import React, { FC, useMemo, useRef } from 'react';
 import { TreeView } from '../tree-view/TreeView';
+import { replaceEqualDeep } from '../utils/structuralSharing';
 
 import { ObjectRootLabel } from './ObjectRootLabel';
 import { ObjectLabel } from './ObjectLabel';
@@ -97,17 +98,36 @@ const defaultNodeRenderer = ({ depth, name, data, isNonenumerable }: any) =>
 /**
  * Tree-view for objects
  */
-const ObjectInspector: FC<any> = ({ showNonenumerable = false, sortObjectKeys, nodeRenderer, ...treeViewProps }) => {
+const ObjectInspector: FC<any> = ({
+  showNonenumerable = false,
+  sortObjectKeys,
+  nodeRenderer,
+  data,
+  structuralSharing = true,
+  ...treeViewProps
+}) => {
   // Memoize the iterator so its identity is stable across re-renders. A fresh
   // iterator on every render would re-trigger TreeView's expand effect (and
   // defeat node memoization) even when only `data` values change.
-  const dataIterator = useMemo(() => createIterator(showNonenumerable, sortObjectKeys), [
-    showNonenumerable,
-    sortObjectKeys,
-  ]);
+  const dataIterator = useMemo(
+    () => createIterator(showNonenumerable, sortObjectKeys),
+    [showNonenumerable, sortObjectKeys]
+  );
   const renderer = nodeRenderer ? nodeRenderer : defaultNodeRenderer;
 
-  return <TreeView nodeRenderer={renderer} dataIterator={dataIterator} {...treeViewProps} />;
+  // Structural sharing: when `data` is a brand-new object each refresh (the
+  // typical live/streaming case), reconcile it against the previous frame so
+  // unchanged subtrees keep a stable reference. Without this, reference-equality
+  // memo on the tree nodes can never skip anything. One O(n) pass per refresh.
+  const prevDataRef = useRef<any>(undefined);
+  const sharedData = useMemo(() => {
+    if (!structuralSharing) return data;
+    const reconciled = replaceEqualDeep(prevDataRef.current, data);
+    prevDataRef.current = reconciled;
+    return reconciled;
+  }, [data, structuralSharing]);
+
+  return <TreeView nodeRenderer={renderer} dataIterator={dataIterator} data={sharedData} {...treeViewProps} />;
 };
 
 // ObjectInspector.propTypes = {

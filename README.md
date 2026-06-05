@@ -13,7 +13,11 @@ Power of [Browser DevTools](https://developers.google.com/web/tools/chrome-devto
 This fork targets the following improvements. Status reflects what is actually implemented today:
 
 1. **Expand/collapse state decoupled from `data`** — ✅ implemented. `expandLevel`/`expandPaths` are applied only on mount (and when those props change), not re-asserted on every `data` change, so refreshing the data no longer reopens nodes the user has collapsed. See the _"Verify - collapse persists under refresh"_ Storybook story.
-2. **Node-level memoization** — 🚧 partial. Tree nodes are wrapped in `React.memo` and the `dataIterator` identity is now stable across renders (previously a fresh iterator was created on every render, which defeated memoization). Subtrees whose `data` reference is unchanged are now skipped; nodes whose value object is recreated each tick still re-render, so the win is not yet complete.
+2. **Node-level memoization + structural sharing** — ✅ implemented. Four pieces had to be fixed for memoization to actually take effect:
+   - **Recursive-component memo bug (the critical one):** the recursive tree node was written as `const ConnectedTreeNode = memo(function ConnectedTreeNode(props) { … <ConnectedTreeNode/> … })`. A named function expression binds its own name inside its scope, so the recursive `<ConnectedTreeNode/>` resolved to the **raw, unmemoized inner function** instead of the `memo` wrapper — meaning *no child node was ever memoized* and the whole subtree re-rendered on every change. Fixed by naming the inner function differently so the recursive reference resolves to the memoized `const`.
+   - Tree nodes are wrapped in `React.memo` and the `dataIterator` identity is stable across renders.
+   - The `ExpandedPathsContext` value is memoized, so a data-only refresh no longer changes the context identity (previously a fresh array on every render force-re-rendered every consumer).
+   - **Structural sharing** (`structuralSharing`, default `true`): each refresh, the incoming `data` is reconciled against the previous frame so subtrees that are *deeply equal* reuse the previous reference. This is what makes memoization effective in the common live case where every frame is a **brand-new object** (e.g. `JSON.parse` of a websocket payload) — without it, every node has a new reference and nothing can be skipped. One O(n) pass per refresh, far cheaper than re-rendering the tree. The win scales with how much is actually unchanged; truly changed subtrees still re-render.
 3. **Safe "expand all"** — 🚧 planned. Avoid the upstream O(n²) cost of large `expandLevel` values.
 4. **Large-data support** — 🚧 planned. Truncation/paging and/or virtualization so expanding very large arrays/objects does not freeze the UI. Not implemented yet.
 
@@ -73,6 +77,8 @@ The component accepts the following props:
   - You can use wildcard to expand all paths on a specific level
     - For example, to expand all first level and second level nodes, use `['$', '$.*']` (equivalent to `expandLevel={2}`)
 - the results are merged with expandLevel
+
+**`structuralSharing: PropTypes.bool`** (default `true`)**:** reconcile each new `data` against the previous frame so deeply-equal subtrees reuse the previous reference, letting `React.memo` skip unchanged nodes even when `data` is a brand-new object every refresh. Set to `false` to opt out (e.g. if your `data` already preserves references for unchanged subtrees, to skip the extra diff pass).
 
 **`showNonenumerable: PropTypes.bool`:** show non-enumerable properties
 
@@ -188,7 +194,10 @@ Performance (this fork):
 
 - [x] Expand/collapse state decoupled from `data`
 - [x] Stable `dataIterator` identity (prerequisite for memoization)
-- [ ] Node-level memoization (fully effective)
+- [x] Memoized `ExpandedPathsContext` value (data refresh no longer re-renders all nodes)
+- [x] Node-level memoization (effective for unchanged-reference subtrees)
+- [x] Structural sharing (memoization works even when each frame is a brand-new object)
+- [ ] Viewport-gated rendering (freeze off-screen nodes under high-frequency refresh)
 - [ ] Safe "expand all" for large `expandLevel`
 - [ ] Large-data support (truncation/paging and/or virtualization)
 
