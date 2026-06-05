@@ -105,6 +105,17 @@ export const TreeView = memo(function TreeView({
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
+  // CAVEAT (text rendering on a transparent background):
+  // Each row is positioned with `transform: translateY(...)`. On Chromium/WebKit
+  // a transformed element is painted into its own buffer, and sub-pixel (LCD)
+  // antialiasing is disabled there unless the text has an *opaque* backdrop to
+  // blend against. With a transparent inspector background the rows fall back to
+  // grayscale antialiasing, so the scrolled region looks washed-out / hazy
+  // (often perceived as a faint diagonal texture). This is inherent to any
+  // transform-based virtualization (react-virtual, react-window, …), not a bug
+  // in the measurement here. Fix it at the call site by giving the inspector
+  // (or an ancestor) an opaque `background` matching the surrounding surface —
+  // visually identical, but it restores sub-pixel antialiasing.
   return (
     <div
       ref={scrollRef}

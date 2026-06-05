@@ -192,6 +192,34 @@ import { chromeLight } from 'react-inspector'
 <Inspector theme={{...chromeLight, ...({ TREENODE_PADDING_LEFT: 20 })}} data={{a: 'a', b: 'b'}}/>
 ```
 
+## Caveats
+
+### Blurry / washed-out text on a transparent background (virtualization + `transform`)
+
+Because the tree is virtualized, every visible row is positioned with
+`transform: translateY(...)`. On Chromium/WebKit a transformed element is
+painted into its own buffer, and **sub-pixel (LCD) antialiasing is disabled
+there unless the text has an _opaque_ backdrop to blend against**. If the
+inspector sits on a transparent background, the rows fall back to grayscale
+antialiasing and the **scrolled region looks hazy / washed-out** — often
+perceived as a faint diagonal texture or the content "dimming" once a scrollbar
+appears. It is most noticeable with `multiline` (more wrapped text per screen).
+
+This is inherent to any transform-based virtualization (`react-virtual`,
+`react-window`, …) — not a measurement bug. The fix is to give the inspector,
+or any ancestor, an **opaque `background` matching the surrounding surface**.
+It is visually identical but restores sub-pixel antialiasing:
+
+```jsx
+// surface is #141414 → make the inspector's background opaque, not transparent
+<div style={{ background: '#141414' }}>
+  <Inspector multiline data={data} height="100%" />
+</div>
+```
+
+(Don't rely on the parent's background showing _through_ a transparent
+inspector — the text layer needs the opaque color in its own paint backdrop.)
+
 ## Roadmap
 
 Type of inspectors:
