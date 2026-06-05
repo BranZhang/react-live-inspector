@@ -1,9 +1,12 @@
 # react-live-inspector
 
-## Unreleased
-- Forked from [`react-inspector`](https://github.com/storybookjs/react-inspector) (MIT, by Xiaoyi Chen).
-- Optimized for high-frequency data refresh: node-level memoization, expand/collapse state decoupled from `data`, and safe "expand all".
-- Public API kept fully compatible with `react-inspector`.
+## 8.0.0 (06/05/2026)
+- Forked from [`react-inspector`](https://github.com/storybookjs/react-inspector) (MIT, by Xiaoyi Chen), tuned for high-frequency `data` refresh (live/streaming previews).
+- **Full virtualization** of the tree via [`@tanstack/react-virtual`](https://tanstack.com/virtual): only on-screen rows mount, so very large arrays/objects no longer freeze the UI and a `data` refresh re-renders just the visible rows. The component now owns an internal scroll container — new `height`/`maxHeight`/`rowHeight`/`overscan` props. Trade-off: rows render single-line (long values no longer wrap).
+- **Expand/collapse state decoupled from `data`**: `expandLevel`/`expandPaths` are applied only on mount and when those props change, so refreshing `data` no longer reopens nodes the user has collapsed.
+- **Safe "expand all"**: a large `expandLevel` is resolved in a single bounded tree walk instead of re-walking the tree once per level, eliminating the upstream O(level × n) cost on deep trees.
+- Stable `dataIterator` identity (prerequisite for the flatten/expand memoization).
+- Public API kept fully compatible with `react-inspector` — drop-in replacement.
 
 ---
 
