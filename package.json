@@ -1,6 +1,6 @@
 {
   "name": "react-live-inspector",
-  "version": "8.0.0",
+  "version": "8.1.0",
   "description": "A fork of react-inspector optimized for very large datasets and frequent updates",
   "keywords": [
     "devtools",
