@@ -101,10 +101,10 @@ const ObjectInspector: FC<any> = ({ showNonenumerable = false, sortObjectKeys, n
   // Memoize the iterator so its identity is stable across re-renders. A fresh
   // iterator on every render would re-trigger TreeView's expand effect (and
   // defeat node memoization) even when only `data` values change.
-  const dataIterator = useMemo(() => createIterator(showNonenumerable, sortObjectKeys), [
-    showNonenumerable,
-    sortObjectKeys,
-  ]);
+  const dataIterator = useMemo(
+    () => createIterator(showNonenumerable, sortObjectKeys),
+    [showNonenumerable, sortObjectKeys]
+  );
   const renderer = nodeRenderer ? nodeRenderer : defaultNodeRenderer;
 
   return <TreeView nodeRenderer={renderer} dataIterator={dataIterator} {...treeViewProps} />;

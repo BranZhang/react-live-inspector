@@ -92,5 +92,8 @@
       "npm",
       "released"
     ]
+  },
+  "dependencies": {
+    "@tanstack/react-virtual": "^3.14.2"
   }
 }

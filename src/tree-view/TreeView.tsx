@@ -1,68 +1,25 @@
-import React, { useContext, useCallback, useLayoutEffect, useRef, useState, memo } from 'react';
-import { ExpandedPathsContext } from './ExpandedPathsContext';
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState, memo } from 'react';
+import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual';
 import { TreeNode } from './TreeNode';
-import { DEFAULT_ROOT_PATH, hasChildNodes, getExpandedPaths } from './pathUtils';
+import { flattenTree } from './flattenTree';
+import { getExpandedPaths } from './pathUtils';
 
 import { useStyles } from '../styles';
 
-const ConnectedTreeNode = memo(function ConnectedTreeNode(props: Record<string, any>) {
-  const { data, dataIterator, path, depth, nodeRenderer } = props;
-  const [expandedPaths, setExpandedPaths] = useContext(ExpandedPathsContext);
-  const nodeHasChildNodes = hasChildNodes(data, dataIterator);
-  const expanded = !!expandedPaths[path];
+const DEFAULT_HEIGHT = 400;
+const DEFAULT_ROW_HEIGHT = 16;
+const DEFAULT_OVERSCAN = 20;
 
-  const handleClick = useCallback(
-    () =>
-      nodeHasChildNodes &&
-      setExpandedPaths((prevExpandedPaths) => ({
-        ...prevExpandedPaths,
-        [path]: !expanded,
-      })),
-    [nodeHasChildNodes, setExpandedPaths, path, expanded]
-  );
+const toCssSize = (value: number | string | undefined) => (typeof value === 'number' ? `${value}px` : value);
 
-  return (
-    <TreeNode
-      expanded={expanded}
-      onClick={handleClick}
-      // show arrow anyway even if not expanded and not rendering children
-      shouldShowArrow={nodeHasChildNodes}
-      // show placeholder only for non root nodes
-      shouldShowPlaceholder={depth > 0}
-      // Render a node from name and data (or possibly other props like isNonenumerable)
-      nodeRenderer={nodeRenderer}
-      {...props}>
-      {
-        // only render if the node is expanded
-        expanded
-          ? [...dataIterator(data)].map(({ name, data, ...renderNodeProps }) => {
-              return (
-                <ConnectedTreeNode
-                  name={name}
-                  data={data}
-                  depth={depth + 1}
-                  path={`${path}.${name}`}
-                  key={name}
-                  dataIterator={dataIterator}
-                  nodeRenderer={nodeRenderer}
-                  {...renderNodeProps}
-                />
-              );
-            })
-          : null
-      }
-    </TreeNode>
-  );
-});
-
-// ConnectedTreeNode.propTypes = {
-//   name: PropTypes.string,
-//   data: PropTypes.any,
-//   dataIterator: PropTypes.func,
-//   depth: PropTypes.number,
-//   expanded: PropTypes.bool,
-//   nodeRenderer: PropTypes.func,
-// };
+const toNumber = (value: number | string | undefined, fallback: number) => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return fallback;
+};
 
 export const TreeView = memo(function TreeView({
   name,
@@ -71,10 +28,13 @@ export const TreeView = memo(function TreeView({
   nodeRenderer,
   expandPaths,
   expandLevel,
+  height = DEFAULT_HEIGHT,
+  maxHeight,
+  rowHeight = DEFAULT_ROW_HEIGHT,
+  overscan = DEFAULT_OVERSCAN,
 }: Record<string, any>) {
   const styles = useStyles('TreeView');
-  const stateAndSetter = useState({});
-  const [, setExpandedPaths] = stateAndSetter;
+  const [expandedPaths, setExpandedPaths] = useState<Record<string, boolean>>({});
 
   // Keep the latest data available without making it an effect dependency.
   const dataRef = useRef(data);
@@ -92,27 +52,75 @@ export const TreeView = memo(function TreeView({
     [dataIterator, expandPaths, expandLevel]
   );
 
+  const toggleExpand = useCallback(
+    (path: string) => setExpandedPaths((prev) => ({ ...prev, [path]: !prev[path] })),
+    []
+  );
+
+  // Flatten the visible tree. Only expanded subtrees are walked, so even a
+  // huge collapsed collection is cheap.
+  const rows = useMemo(
+    () => flattenTree(name, data, dataIterator, expandedPaths),
+    [name, data, dataIterator, expandedPaths]
+  );
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const numericHeight = toNumber(maxHeight ?? height, DEFAULT_HEIGHT);
+
+  // Fall back to the configured height whenever the scroll element reports a
+  // 0 height. This keeps the inspector usable when it is mounted in a not-yet
+  // laid-out / detached container, and in headless environments (SSR, jsdom,
+  // happy-dom) where getBoundingClientRect returns 0 — otherwise the virtualizer
+  // would compute an empty window and render nothing.
+  const observeRect = useCallback(
+    (instance: any, cb: (rect: { width: number; height: number }) => void) =>
+      observeElementRect(instance, (rect) => cb({ width: rect.width, height: rect.height || numericHeight })),
+    [numericHeight]
+  );
+
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => rowHeight,
+    overscan,
+    observeElementRect: observeRect,
+    // Seed a sensible window before the scroll element is measured.
+    initialRect: { width: 0, height: numericHeight },
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+
   return (
-    <ExpandedPathsContext.Provider value={stateAndSetter}>
-      <ol role="tree" style={styles.treeViewOutline}>
-        <ConnectedTreeNode
-          name={name}
-          data={data}
-          dataIterator={dataIterator}
-          depth={0}
-          path={DEFAULT_ROOT_PATH}
-          nodeRenderer={nodeRenderer}
-        />
-      </ol>
-    </ExpandedPathsContext.Provider>
+    <div
+      ref={scrollRef}
+      role="tree"
+      style={{
+        ...styles.treeViewOutline,
+        height: toCssSize(height),
+        maxHeight: toCssSize(maxHeight),
+        overflow: 'auto',
+      }}>
+      <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
+        {virtualItems.map((virtualRow) => {
+          const row = rows[virtualRow.index];
+          return (
+            <TreeNode
+              key={row.path}
+              {...row}
+              nodeRenderer={nodeRenderer}
+              onClick={() => row.hasChildren && toggleExpand(row.path)}
+              virtualStyle={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: rowHeight,
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 });
-
-// TreeView.propTypes = {
-//   name: PropTypes.string,
-//   data: PropTypes.any,
-//   dataIterator: PropTypes.func,
-//   nodeRenderer: PropTypes.func,
-//   expandPaths: PropTypes.oneOfType([PropTypes.string, PropTypes.array]),
-//   expandLevel: PropTypes.number,
-// };
