@@ -27,7 +27,9 @@ describe('ObjectInspector Content', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const button = container.querySelector('div');
+    // Click the root row's clickable preview container (the inner div of the
+    // first treeitem) to expand it.
+    const button = container.querySelector('[role="treeitem"] div');
     await user.click(button);
 
     expect(container).toMatchSnapshot();

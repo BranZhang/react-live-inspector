@@ -10,12 +10,19 @@ Power of [Browser DevTools](https://developers.google.com/web/tools/chrome-devto
 
 `react-live-inspector` is a fork of [`react-inspector`](https://github.com/storybookjs/react-inspector) (MIT), tuned for **scenarios where `data` refreshes at high frequency** (e.g. live/streaming previews). The upstream library re-renders the whole tree whenever the `data` reference changes and resets the user's expand/collapse state on every update, which becomes a performance and UX problem under continuous refresh.
 
-This fork targets the following improvements. Status reflects what is actually implemented today:
+This fork targets the following improvements. Status reflects what is actually implemented today.
 
-1. **Expand/collapse state decoupled from `data`** — ✅ implemented. `expandLevel`/`expandPaths` are applied only on mount (and when those props change), not re-asserted on every `data` change, so refreshing the data no longer reopens nodes the user has collapsed. See the _"Verify - collapse persists under refresh"_ Storybook story.
-2. **Node-level memoization** — 🚧 partial. Tree nodes are wrapped in `React.memo` and the `dataIterator` identity is now stable across renders (previously a fresh iterator was created on every render, which defeated memoization). Subtrees whose `data` reference is unchanged are now skipped; nodes whose value object is recreated each tick still re-render, so the win is not yet complete.
-3. **Safe "expand all"** — 🚧 planned. Avoid the upstream O(n²) cost of large `expandLevel` values.
-4. **Large-data support** — 🚧 planned. Truncation/paging and/or virtualization so expanding very large arrays/objects does not freeze the UI. Not implemented yet.
+**Features**
+
+- **Large-data support (full virtualization)** — ✅ implemented. The tree is now **fully virtualized** (via [`@tanstack/react-virtual`](https://tanstack.com/virtual)) regardless of node count: only the rows currently on screen are mounted, so expanding very large arrays/objects no longer freezes the UI, and a `data` refresh only re-renders the handful of visible rows (the whole-tree re-render that node-level memoization used to target is no longer possible). The component now owns an internal scroll container — see the new `height`/`maxHeight`/`rowHeight`/`overscan` props below. Trade-off: rows are rendered single-line (long values no longer wrap).
+
+**Fixes (vs. upstream)**
+
+- **Expand/collapse state decoupled from `data`** — ✅ implemented. `expandLevel`/`expandPaths` are applied only on mount (and when those props change), not re-asserted on every `data` change, so refreshing the data no longer reopens nodes the user has collapsed. See the _"Verify - collapse persists under refresh"_ Storybook story.
+
+**Planned**
+
+- **Safe "expand all"** — 🚧 planned. Avoid the upstream O(n²) cost of large `expandLevel` values (independent of rendering, so virtualization does not address it).
 
 > **The component API is kept fully compatible with `react-inspector`.** Existing props and components work unchanged — migration is a drop-in replacement.
 
@@ -94,6 +101,19 @@ When `sortObjectKeys={true}` is provided, keys of objects are sorted in alphabet
       ? <ObjectRootLabel name={name} data={data} />
       : <ObjectLabel name={name} data={data} isNonenumerable={isNonenumerable} />;
   ```
+
+#### Virtualization props (this fork)
+
+The tree view is fully virtualized and renders inside an internal scroll container.
+These optional props are accepted by `<ObjectInspector>`, `<DOMInspector>` and `<Inspector>`:
+
+**`height: PropTypes.oneOfType([PropTypes.number, PropTypes.string])`:** height of the scroll container (numbers are treated as `px`). Defaults to `400`.
+
+**`maxHeight: PropTypes.oneOfType([PropTypes.number, PropTypes.string])`:** use a max-height instead of a fixed height, so the container shrinks to fit small trees and scrolls once it would exceed this value.
+
+**`rowHeight: PropTypes.number`:** fixed row height in `px` used to estimate/position rows. Defaults to `16`. Rows are single-line (`white-space: nowrap`), so long values are clipped rather than wrapped.
+
+**`overscan: PropTypes.number`:** number of extra rows rendered above/below the viewport. Defaults to `20`.
 
 ### &lt;TableInspector />
 
@@ -187,10 +207,9 @@ Type of inspectors:
 Performance (this fork):
 
 - [x] Expand/collapse state decoupled from `data`
-- [x] Stable `dataIterator` identity (prerequisite for memoization)
-- [ ] Node-level memoization (fully effective)
+- [x] Stable `dataIterator` identity (prerequisite for the flatten/expand memoization)
+- [x] Large-data support (full virtualization via `@tanstack/react-virtual` — supersedes node-level memoization, since only visible rows render)
 - [ ] Safe "expand all" for large `expandLevel`
-- [ ] Large-data support (truncation/paging and/or virtualization)
 
 ## Contribution
 

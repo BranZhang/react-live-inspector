@@ -1,4 +1,4 @@
-import React, { Children, FC, memo } from 'react';
+import React, { FC, memo } from 'react';
 import { useStyles } from '../styles';
 
 const Arrow: FC<any> = ({ expanded, styles }) => (
@@ -16,39 +16,42 @@ export const TreeNode: FC<any> = memo((props) => {
     expanded: true,
     nodeRenderer: ({ name }: any) => <span>{name}</span>,
     onClick: () => {},
-    shouldShowArrow: false,
-    shouldShowPlaceholder: true,
+    hasChildren: false,
+    depth: 0,
     ...props,
   };
-  const { expanded, onClick, children, nodeRenderer, title, shouldShowArrow, shouldShowPlaceholder } = props;
+  const { expanded, onClick, nodeRenderer, title, hasChildren, depth, virtualStyle } = props;
 
   const styles = useStyles('TreeNode');
   const NodeRenderer = nodeRenderer;
 
+  // Indentation is per-level left padding (one level == TREENODE_PADDING_LEFT),
+  // simulating the nested <ol> padding of the old recursive renderer.
+  const paddingLeft = (styles.treeNodeChildNodesContainer.paddingLeft as number) * depth;
+
+  // show arrow when the node has children; otherwise reserve the arrow's space
+  // with a placeholder for non-root nodes (depth > 0).
+  const showPlaceholder = !hasChildren && depth > 0;
+
   return (
-    <li aria-expanded={expanded} role="treeitem" style={styles.treeNodeBase} title={title}>
-      <div style={styles.treeNodePreviewContainer} onClick={onClick}>
-        {shouldShowArrow || Children.count(children) > 0 ? (
+    <div
+      aria-expanded={hasChildren ? expanded : undefined}
+      aria-level={depth + 1}
+      role="treeitem"
+      title={title}
+      style={{
+        ...styles.treeNodeBase,
+        whiteSpace: 'nowrap',
+        ...virtualStyle,
+      }}>
+      <div style={{ ...styles.treeNodePreviewContainer, paddingLeft }} onClick={onClick}>
+        {hasChildren ? (
           <Arrow expanded={expanded} styles={styles.treeNodeArrow} />
         ) : (
-          shouldShowPlaceholder && <span style={styles.treeNodePlaceholder}>&nbsp;</span>
+          showPlaceholder && <span style={styles.treeNodePlaceholder}>&nbsp;</span>
         )}
         <NodeRenderer {...props} />
       </div>
-
-      <ol role="group" style={styles.treeNodeChildNodesContainer}>
-        {expanded ? children : undefined}
-      </ol>
-    </li>
+    </div>
   );
 });
-
-// TreeNode.propTypes = {
-//   name: PropTypes.string,
-//   data: PropTypes.any,
-//   expanded: PropTypes.bool,
-//   shouldShowArrow: PropTypes.bool,
-//   shouldShowPlaceholder: PropTypes.bool,
-//   nodeRenderer: PropTypes.func,
-//   onClick: PropTypes.func,
-// };
