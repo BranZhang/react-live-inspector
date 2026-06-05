@@ -2,7 +2,7 @@ import React, { useCallback, useLayoutEffect, useMemo, useRef, useState, memo } 
 import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual';
 import { TreeNode } from './TreeNode';
 import { flattenTree } from './flattenTree';
-import { getExpandedPaths } from './pathUtils';
+import { getExpandedPaths, hasChildNodes } from './pathUtils';
 
 import { useStyles } from '../styles';
 
@@ -40,21 +40,32 @@ export const TreeView = memo(function TreeView({
   const styles = useStyles('TreeView');
   const [expandedPaths, setExpandedPaths] = useState<Record<string, boolean>>({});
 
-  // Keep the latest data available without making it an effect dependency.
-  const dataRef = useRef(data);
-  dataRef.current = data;
+  // Whether the current expandPaths/expandLevel config has already been seeded
+  // against data that actually has children. Re-armed whenever the config (or
+  // iterator identity) changes so a new config is applied to the live data.
+  const seededRef = useRef(false);
+  useLayoutEffect(() => {
+    seededRef.current = false;
+  }, [dataIterator, expandPaths, expandLevel]);
 
-  // Apply expandLevel/expandPaths only on mount and when those props (or the
-  // iterator identity) change — NOT on every `data` change. Re-asserting on each
-  // refresh would re-expand paths the user has collapsed, breaking the
-  // "expand/collapse state decoupled from data" guarantee under live refresh.
-  useLayoutEffect(
-    () =>
-      setExpandedPaths((prevExpandedPaths) =>
-        getExpandedPaths(dataRef.current, dataIterator, expandPaths, expandLevel, prevExpandedPaths)
-      ),
-    [dataIterator, expandPaths, expandLevel]
-  );
+  // Seed the initial expandLevel/expandPaths expansion exactly once, as soon as
+  // `data` is non-trivial. We intentionally depend on `data` so the initial
+  // expansion is applied even when data arrives asynchronously *after* mount
+  // (e.g. the host fills it in a post-mount effect). The `seededRef` guard means
+  // we do NOT re-assert on every subsequent refresh, preserving the
+  // "expand/collapse state decoupled from data" guarantee under live refresh —
+  // paths the user has manually collapsed stay collapsed.
+  useLayoutEffect(() => {
+    if (seededRef.current) return;
+    // If there's something to expand but data has no children yet, defer until
+    // real data shows up. With nothing configured to expand, seed immediately.
+    const wantsExpansion = (expandLevel as number) > 0 || ([] as any[]).concat(expandPaths).some((p) => p != null);
+    if (wantsExpansion && !hasChildNodes(data, dataIterator)) return;
+    seededRef.current = true;
+    setExpandedPaths((prevExpandedPaths) =>
+      getExpandedPaths(data, dataIterator, expandPaths, expandLevel, prevExpandedPaths)
+    );
+  }, [data, dataIterator, expandPaths, expandLevel]);
 
   const toggleExpand = useCallback(
     (path: string) => setExpandedPaths((prev) => ({ ...prev, [path]: !prev[path] })),
