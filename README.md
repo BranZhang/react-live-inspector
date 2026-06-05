@@ -14,7 +14,7 @@ This fork targets the following improvements. Status reflects what is actually i
 
 **Features**
 
-- **Large-data support (full virtualization)** — ✅ implemented. The tree is now **fully virtualized** (via [`@tanstack/react-virtual`](https://tanstack.com/virtual)) regardless of node count: only the rows currently on screen are mounted, so expanding very large arrays/objects no longer freezes the UI, and a `data` refresh only re-renders the handful of visible rows (the whole-tree re-render that node-level memoization used to target is no longer possible). The component now owns an internal scroll container — see the new `height`/`maxHeight`/`rowHeight`/`overscan` props below. Trade-off: rows are rendered single-line (long values no longer wrap).
+- **Large-data support (full virtualization)** — ✅ implemented. The tree is now **fully virtualized** (via [`@tanstack/react-virtual`](https://tanstack.com/virtual)) regardless of node count: only the rows currently on screen are mounted, so expanding very large arrays/objects no longer freezes the UI, and a `data` refresh only re-renders the handful of visible rows (the whole-tree re-render that node-level memoization used to target is no longer possible). The component now owns an internal scroll container — see the new `height`/`maxHeight`/`rowHeight`/`overscan` props below. By default rows are rendered single-line (long values are clipped, not wrapped) so the virtualizer can use a cheap fixed row height; opt into wrapping with the `multiline` prop (rows then size to content via dynamic measurement).
 - **Safe "expand all"** — ✅ implemented. A large `expandLevel` is resolved in a single bounded tree walk instead of re-walking the tree once per level, eliminating the upstream O(level × n) cost of fully expanding a deep tree (this is independent of rendering, so virtualization alone does not address it).
 
 **Fixes (vs. upstream)**
@@ -108,9 +108,11 @@ These optional props are accepted by `<ObjectInspector>`, `<DOMInspector>` and `
 
 **`maxHeight: PropTypes.oneOfType([PropTypes.number, PropTypes.string])`:** use a max-height instead of a fixed height, so the container shrinks to fit small trees and scrolls once it would exceed this value.
 
-**`rowHeight: PropTypes.number`:** fixed row height in `px` used to estimate/position rows. Defaults to `16`. Rows are single-line (`white-space: nowrap`), so long values are clipped rather than wrapped.
+**`rowHeight: PropTypes.number`:** fixed row height in `px` used to estimate/position rows. Defaults to `16`. In the default single-line mode (`white-space: nowrap`) long values are clipped rather than wrapped; when `multiline` is enabled this value is only used as the initial estimate before each row is measured.
 
 **`overscan: PropTypes.number`:** number of extra rows rendered above/below the viewport. Defaults to `20`.
+
+**`multiline: PropTypes.bool`:** when `true`, rows wrap (`white-space: normal; word-break: break-word`) instead of being clipped to a single line, restoring the wrapping behaviour of the original `react-inspector`. Row heights are then measured dynamically from the DOM (variable size) rather than using the fixed `rowHeight`, so virtualization is preserved. Defaults to `false` (the cheaper fixed-height path). Enable it when long values need to be fully visible without horizontal scrolling.
 
 ### &lt;TableInspector />
 

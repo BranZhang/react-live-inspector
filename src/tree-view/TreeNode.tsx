@@ -20,7 +20,8 @@ export const TreeNode: FC<any> = memo((props) => {
     depth: 0,
     ...props,
   };
-  const { expanded, onClick, nodeRenderer, title, hasChildren, depth, virtualStyle } = props;
+  const { expanded, onClick, nodeRenderer, title, hasChildren, depth, virtualStyle, multiline, measureRef, dataIndex } =
+    props;
 
   const styles = useStyles('TreeNode');
   const NodeRenderer = nodeRenderer;
@@ -35,13 +36,19 @@ export const TreeNode: FC<any> = memo((props) => {
 
   return (
     <div
+      ref={measureRef}
+      data-index={dataIndex}
       aria-expanded={hasChildren ? expanded : undefined}
       aria-level={depth + 1}
       role="treeitem"
       title={title}
       style={{
         ...styles.treeNodeBase,
-        whiteSpace: 'nowrap',
+        // Single-line mode clips to one line; multiline mode wraps and breaks
+        // long tokens so the dynamic measurement reflects the wrapped height.
+        ...(multiline
+          ? { whiteSpace: 'normal', wordBreak: 'break-word' }
+          : { whiteSpace: 'nowrap' }),
         ...virtualStyle,
       }}>
       <div style={{ ...styles.treeNodePreviewContainer, paddingLeft }} onClick={onClick}>

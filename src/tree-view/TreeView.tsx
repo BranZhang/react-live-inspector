@@ -32,6 +32,10 @@ export const TreeView = memo(function TreeView({
   maxHeight,
   rowHeight = DEFAULT_ROW_HEIGHT,
   overscan = DEFAULT_OVERSCAN,
+  // When true, rows wrap instead of being clipped to a single line. Row heights
+  // are then measured dynamically (variable size) instead of using the fixed
+  // `rowHeight`. Defaults to false to keep the cheaper fixed-height path.
+  multiline = false,
 }: Record<string, any>) {
   const styles = useStyles('TreeView');
   const [expandedPaths, setExpandedPaths] = useState<Record<string, boolean>>({});
@@ -108,13 +112,18 @@ export const TreeView = memo(function TreeView({
               key={row.path}
               {...row}
               nodeRenderer={nodeRenderer}
+              multiline={multiline}
+              dataIndex={virtualRow.index}
+              // In multiline mode the row height is measured from the DOM.
+              measureRef={multiline ? rowVirtualizer.measureElement : undefined}
               onClick={() => row.hasChildren && toggleExpand(row.path)}
               virtualStyle={{
                 position: 'absolute',
                 top: 0,
                 left: 0,
                 width: '100%',
-                height: rowHeight,
+                // Fixed height only in single-line mode; multiline rows size to content.
+                ...(multiline ? null : { height: rowHeight }),
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             />
