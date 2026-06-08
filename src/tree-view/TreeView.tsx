@@ -36,6 +36,13 @@ export const TreeView = memo(function TreeView({
   // are then measured dynamically (variable size) instead of using the fixed
   // `rowHeight`. Defaults to false to keep the cheaper fixed-height path.
   multiline = false,
+  // When true, the inspector fills the remaining space of a flex parent instead
+  // of taking an explicit `height`. The scroll container then sizes itself via
+  // `flex: 1; min-height: 0`, so a sibling above it (e.g. a search box) no longer
+  // gets pushed out and forces a second scrollbar on the parent. Requires the
+  // parent to be a flex column with a bounded height. `height`/`maxHeight` are
+  // ignored for layout in this mode (still used only as the virtualizer's seed).
+  fill = false,
 }: Record<string, any>) {
   const styles = useStyles('TreeView');
   const [expandedPaths, setExpandedPaths] = useState<Record<string, boolean>>({});
@@ -122,8 +129,7 @@ export const TreeView = memo(function TreeView({
       role="tree"
       style={{
         ...styles.treeViewOutline,
-        height: toCssSize(height),
-        maxHeight: toCssSize(maxHeight),
+        ...(fill ? { flex: '1 1 0', minHeight: 0 } : { height: toCssSize(height), maxHeight: toCssSize(maxHeight) }),
         overflow: 'auto',
       }}>
       <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>

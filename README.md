@@ -114,6 +114,8 @@ These optional props are accepted by `<ObjectInspector>`, `<DOMInspector>` and `
 
 **`multiline: PropTypes.bool`:** when `true`, rows wrap (`white-space: normal; word-break: break-word`) instead of being clipped to a single line, restoring the wrapping behaviour of the original `react-inspector`. Row heights are then measured dynamically from the DOM (variable size) rather than using the fixed `rowHeight`, so virtualization is preserved. Defaults to `false` (the cheaper fixed-height path). Enable it when long values need to be fully visible without horizontal scrolling.
 
+**`fill: PropTypes.bool`:** when `true`, the inspector fills the remaining space of a flex container instead of taking an explicit `height` — the scroll region sizes itself via `flex: 1; min-height: 0`, so scrolling stays inside the inspector and a sibling above it (e.g. a search box) is never pushed out into a second scrollbar. Requires the parent to be a flex column with a bounded height. Defaults to `false`. `height`/`maxHeight` are ignored for layout in this mode (still used only as the virtualizer's initial size seed).
+
 ### &lt;TableInspector />
 
 Like `console.table`.
