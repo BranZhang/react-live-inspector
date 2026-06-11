@@ -1,8 +1,8 @@
 # react-live-inspector
 
-[![build status](https://img.shields.io/travis/storybookjs/react-inspector/master.svg?style=flat-square)](https://travis-ci.org/storybookjs/react-inspector)
-[![npm version](https://img.shields.io/npm/v/react-inspector.svg?style=flat-square)](https://www.npmjs.com/package/react-inspector)
-[![npm downloads](https://img.shields.io/npm/dm/react-inspector.svg?style=flat-square)](https://www.npmjs.com/package/react-inspector)
+[![npm version](https://img.shields.io/npm/v/react-live-inspector.svg?style=flat-square)](https://www.npmjs.com/package/react-live-inspector)
+[![npm downloads](https://img.shields.io/npm/dm/react-live-inspector.svg?style=flat-square)](https://www.npmjs.com/package/react-live-inspector)
+[![license](https://img.shields.io/npm/l/react-live-inspector.svg?style=flat-square)](https://github.com/BranZhang/react-live-inspector/blob/main/LICENSE)
 
 Power of [Browser DevTools](https://developers.google.com/web/tools/chrome-devtools/) inspectors right inside your React app. Check out the [storybook](https://sb-react-inspector.netlify.app/) for a demo.
 
@@ -34,13 +34,10 @@ This fork targets the following improvements. Status reflects what is actually i
 NPM:
 
 ```sh
-npm install react-inspector
+npm install react-live-inspector
 ```
 
-Recommended versions:
-
-- version `3.0.2`: If you are using React 16.8.4 or later.
-- version `2.3.1`: If you are using an earlier version of React.
+Requires React `^18.0.0 || ^19.0.0` (peer dependency).
 
 ## Getting started
 
@@ -91,7 +88,7 @@ When `sortObjectKeys={true}` is provided, keys of objects are sorted in alphabet
   nodeRender looks like this:
 
   ```js
-  import { ObjectRootLabel, ObjectLabel } from 'react-inspector'
+  import { ObjectRootLabel, ObjectLabel } from 'react-live-inspector'
 
   const defaultNodeRenderer = ({ depth, name, data, isNonenumerable, expanded }) =>
     depth === 0
@@ -139,10 +136,10 @@ The component accepts the following props:
 #### Usage
 
 ```js
-import { ObjectInspector, TableInspector } from 'react-inspector';
+import { ObjectInspector, TableInspector } from 'react-live-inspector';
 
 // or use the shorthand
-import { Inspector } from 'react-inspector';
+import { Inspector } from 'react-live-inspector';
 
 const MyComponent = ({ data }) =>
   <div>
@@ -178,7 +175,7 @@ Open [http://localhost:9001/](http://localhost:9001/)
 By specifying the `theme` prop you can customize the inspectors. `theme` prop can be
 
 1. a string referring to a preset theme (`"chromeLight"` or `"chromeDark"`, default to `"chromeLight"`)
-2. or a custom object that provides the necessary variables. Checkout [`src/styles/themes`](https://github.com/storybookjs/react-inspector/tree/master/src/styles/themes) for possible theme variables.
+2. or a custom object that provides the necessary variables. Checkout [`src/styles/themes`](https://github.com/BranZhang/react-live-inspector/tree/main/src/styles/themes) for possible theme variables.
 
 **Example 1:** Using a preset theme:
 
@@ -189,7 +186,7 @@ By specifying the `theme` prop you can customize the inspectors. `theme` prop ca
 **Example 2:** changing the tree node indentation by inheriting the chrome light theme:
 
 ```js
-import { chromeLight } from 'react-inspector'
+import { chromeLight } from 'react-live-inspector'
 
 <Inspector theme={{...chromeLight, ...({ TREENODE_PADDING_LEFT: 20 })}} data={{a: 'a', b: 'b'}}/>
 ```
@@ -222,30 +219,7 @@ It is visually identical but restores sub-pixel antialiasing:
 (Don't rely on the parent's background showing _through_ a transparent
 inspector — the text layer needs the opaque color in its own paint backdrop.)
 
-## Roadmap
-
-Type of inspectors:
-
-- [x] Tree style
-  - [x] common objects
-  - [x] DOM nodes
-- [x] Table style
-  - [ ] Column resizer
-- [ ] Group style
-
-Performance (this fork):
-
-- [x] Expand/collapse state decoupled from `data`
-- [x] Stable `dataIterator` identity (prerequisite for the flatten/expand memoization)
-- [x] Large-data support (full virtualization via `@tanstack/react-virtual` — supersedes node-level memoization, since only visible rows render)
-- [x] Safe "expand all" for large `expandLevel`
-
-## Contribution
-
-Contribution is welcome. [Past contributors](https://github.com/storybookjs/react-inspector/graphs/contributors)
-
 ## Additional
 
 - If you intend to capture `console.log`s, you may want to look at [`console-feed`](https://www.npmjs.com/package/console-feed).
-- `react-object-inspector` package will be deprecated. `<ObjectInspector/>` is now part of the new package `react-inspector`.
 - Why inline style? [This document](https://github.com/erikras/react-redux-universal-hot-example/blob/master/docs/InlineStyles.md) summarizes it well.
