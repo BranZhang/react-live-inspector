@@ -1,9 +1,18 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { ComponentType, FC, createContext, useContext, useMemo } from 'react';
 
 import * as themes from './themes';
 import { createTheme } from './base';
 
 const DEFAULT_THEME_NAME = 'chromeLight';
+
+/** Name of a bundled preset theme. */
+export type ThemeName = keyof typeof themes;
+
+/** A custom theme object: a set of theme variables (see src/styles/themes). */
+export type ThemeDefinition = Record<string, string | number>;
+
+/** Accepted values for the `theme` prop: a preset name or a custom theme object. */
+export type Theme = ThemeName | ThemeDefinition;
 
 const ThemeContext = createContext(createTheme(themes[DEFAULT_THEME_NAME]));
 
@@ -22,14 +31,14 @@ export const useStyles = (baseStylesKey: any) => {
  * components.
  * @param {Object} WrappedComponent - React component to be wrapped
  */
-export const themeAcceptor = (WrappedComponent: any) => {
-  const ThemeAcceptor = ({ theme = DEFAULT_THEME_NAME, ...restProps }) => {
+export const themeAcceptor = <P extends object>(WrappedComponent: ComponentType<P>) => {
+  const ThemeAcceptor: FC<Omit<P, 'theme'> & { theme?: Theme }> = ({ theme = DEFAULT_THEME_NAME, ...restProps }) => {
     const themeStyles = useMemo(() => {
       switch (Object.prototype.toString.call(theme)) {
         case '[object String]':
-          return createTheme(themes[theme]);
+          return createTheme(themes[theme as ThemeName]);
         case '[object Object]':
-          return createTheme(theme);
+          return createTheme(theme as ThemeDefinition);
         default:
           return createTheme(themes[DEFAULT_THEME_NAME]);
       }
@@ -37,14 +46,10 @@ export const themeAcceptor = (WrappedComponent: any) => {
 
     return (
       <ThemeContext.Provider value={themeStyles}>
-        <WrappedComponent {...restProps} />
+        <WrappedComponent {...(restProps as P)} />
       </ThemeContext.Provider>
     );
   };
-
-  // ThemeAcceptor.propTypes = {
-  //   theme: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
-  // };
 
   return ThemeAcceptor;
 };

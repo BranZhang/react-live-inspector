@@ -48,6 +48,13 @@ export const ObjectPreview: FC<any> = ({ data }) => {
     const propertyNodes: ReactNode[] = [];
     for (const propertyName in object) {
       if (hasOwnProperty.call(object, propertyName)) {
+        // maxProperties <= 0 means "no properties in the preview": render only
+        // an ellipsis (the `length === maxProperties - 1` check below can never
+        // trigger for 0, which used to render every property instead — #163).
+        if (maxProperties < 1) {
+          propertyNodes.push(<span key="ellipsis">…</span>);
+          break;
+        }
         let ellipsis;
         if (propertyNodes.length === maxProperties - 1 && Object.keys(object).length > maxProperties) {
           ellipsis = <span key={'ellipsis'}>…</span>;

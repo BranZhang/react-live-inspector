@@ -1,4 +1,5 @@
 export { chromeLight, chromeDark } from './styles/themes';
+export type { Theme, ThemeName, ThemeDefinition } from './styles/styles';
 
 import { ObjectInspector } from './object-inspector/ObjectInspector';
 import { TableInspector } from './table-inspector/TableInspector';
@@ -30,5 +31,5 @@ interface TableInspectorProps extends ComponentProps<typeof TableInspector> {
   table: true;
 }
 interface ObjectInspectorProps extends ComponentProps<typeof ObjectInspector> {
-  table: false;
+  table?: false;
 }

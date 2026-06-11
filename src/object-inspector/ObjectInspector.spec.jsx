@@ -2,6 +2,7 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ObjectInspector } from './ObjectInspector';
+import { chromeLight } from '../styles/themes';
 import { describe, it, expect } from 'vitest';
 
 describe('ObjectInspector', () => {
@@ -15,6 +16,37 @@ describe('ObjectInspector', () => {
 
     const { container } = render(<ObjectInspector nodeRenderer={nodeRenderer} />);
     expect(container).toMatchSnapshot();
+  });
+});
+
+describe('ObjectPreview max properties (#163)', () => {
+  it('renders only an ellipsis when OBJECT_PREVIEW_OBJECT_MAX_PROPERTIES is 0', () => {
+    const { container } = render(
+      <ObjectInspector data={{ a: 1, b: 2 }} theme={{ ...chromeLight, OBJECT_PREVIEW_OBJECT_MAX_PROPERTIES: 0 }} />
+    );
+    expect(container.textContent).toContain('{…}');
+    expect(container.textContent).not.toContain('a');
+  });
+
+  it('renders only an ellipsis when OBJECT_PREVIEW_ARRAY_MAX_PROPERTIES is 0', () => {
+    const { container } = render(
+      <ObjectInspector data={[1, 2, 3]} theme={{ ...chromeLight, OBJECT_PREVIEW_ARRAY_MAX_PROPERTIES: 0 }} />
+    );
+    expect(container.textContent).toContain('[…]');
+    expect(container.textContent).not.toContain('1');
+  });
+
+  it('still truncates with an ellipsis at a positive limit', () => {
+    const { container } = render(
+      <ObjectInspector
+        data={{ a: 1, b: 2, c: 3 }}
+        theme={{ ...chromeLight, OBJECT_PREVIEW_OBJECT_MAX_PROPERTIES: 2 }}
+      />
+    );
+    expect(container.textContent).toContain('a');
+    expect(container.textContent).toContain('b');
+    expect(container.textContent).toContain('…');
+    expect(container.textContent).not.toContain('c');
   });
 });
 
