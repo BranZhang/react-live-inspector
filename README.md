@@ -219,6 +219,10 @@ It is visually identical but restores sub-pixel antialiasing:
 (Don't rely on the parent's background showing _through_ a transparent
 inspector — the text layer needs the opaque color in its own paint backdrop.)
 
+## TODO
+
+- **Expose expanded paths** ([upstream #109](https://github.com/storybookjs/react-inspector/issues/109)): make the user-driven expand/collapse state accessible — e.g. an `onExpandedPathsChange` callback (optionally paired with `expandPaths` for controlled usage) — so callers can persist and restore the expansion state. A natural fit for this fork, since the tree already owns its expansion state internally.
+
 ## Additional
 
 - If you intend to capture `console.log`s, you may want to look at [`console-feed`](https://www.npmjs.com/package/console-feed).
