@@ -16,11 +16,15 @@ exports[`ObjectInspector > passes \`nodeRenderer\` prop to <TreeView/> 1`] = `
         style="color: black; background-color: white; line-height: 1.2; cursor: default; box-sizing: border-box; list-style: none; font-family: Menlo, monospace; font-size: 11px; white-space: nowrap; position: absolute; top: 0px; left: 0px; width: 100%; height: 16px; transform: translateY(0px);"
       >
         <div
-          style="padding-left: 0px;"
+          style="padding-left: 0px; display: flex; align-items: flex-start;"
         >
-          <span>
-            unit test
-          </span>
+          <div
+            style="min-width: 0; flex-grow: 1; flex-shrink: 1; flex-basis: 0px;"
+          >
+            <span>
+              unit test
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -44,13 +48,17 @@ exports[`ObjectInspector > should render 1`] = `
         style="color: black; background-color: white; line-height: 1.2; cursor: default; box-sizing: border-box; list-style: none; font-family: Menlo, monospace; font-size: 11px; white-space: nowrap; position: absolute; top: 0px; left: 0px; width: 100%; height: 16px; transform: translateY(0px);"
       >
         <div
-          style="padding-left: 0px;"
+          style="padding-left: 0px; display: flex; align-items: flex-start;"
         >
-          <span
-            style="color: rgb(128, 128, 128);"
+          <div
+            style="min-width: 0; flex-grow: 1; flex-shrink: 1; flex-basis: 0px;"
           >
-            undefined
-          </span>
+            <span
+              style="color: rgb(128, 128, 128);"
+            >
+              undefined
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -75,24 +83,28 @@ exports[`ObjectInspector Content > should render with Maps with Regex and Maps k
         style="color: black; background-color: white; line-height: 1.2; cursor: default; box-sizing: border-box; list-style: none; font-family: Menlo, monospace; font-size: 11px; white-space: nowrap; position: absolute; top: 0px; left: 0px; width: 100%; height: 16px; transform: translateY(0px);"
       >
         <div
-          style="padding-left: 0px;"
+          style="padding-left: 0px; display: flex; align-items: flex-start;"
         >
           <span
             style="color: #6e6e6e; display: inline-block; font-size: 12px; margin-right: 3px; user-select: none; transform: rotateZ(90deg);"
           >
             ▶
           </span>
-          <span
-            style="font-style: italic;"
+          <div
+            style="min-width: 0; flex-grow: 1; flex-shrink: 1; flex-basis: 0px;"
           >
-            Map 
-          </span>
-          <span
-            style="font-style: italic;"
-          >
-            {
-            }
-          </span>
+            <span
+              style="font-style: italic;"
+            >
+              Map 
+            </span>
+            <span
+              style="font-style: italic;"
+            >
+              {
+              }
+            </span>
+          </div>
         </div>
       </div>
       <div
@@ -102,30 +114,34 @@ exports[`ObjectInspector Content > should render with Maps with Regex and Maps k
         style="color: black; background-color: white; line-height: 1.2; cursor: default; box-sizing: border-box; list-style: none; font-family: Menlo, monospace; font-size: 11px; white-space: nowrap; position: absolute; top: 0px; left: 0px; width: 100%; height: 16px; transform: translateY(16px);"
       >
         <div
-          style="padding-left: 12px;"
+          style="padding-left: 12px; display: flex; align-items: flex-start;"
         >
           <span
             style="white-space: pre; font-size: 12px; margin-right: 3px; user-select: none;"
           >
              
           </span>
-          <span>
-            <span
-              style="color: rgb(196, 26, 22);"
-            >
-              /\\S/g
-            </span>
+          <div
+            style="min-width: 0; flex-grow: 1; flex-shrink: 1; flex-basis: 0px;"
+          >
             <span>
-              : 
+              <span
+                style="color: rgb(196, 26, 22);"
+              >
+                /\\S/g
+              </span>
+              <span>
+                : 
+              </span>
+              <span
+                style="color: rgb(196, 26, 22);"
+              >
+                "
+                Regular Expression key
+                "
+              </span>
             </span>
-            <span
-              style="color: rgb(196, 26, 22);"
-            >
-              "
-              Regular Expression key
-              "
-            </span>
-          </span>
+          </div>
         </div>
       </div>
     </div>

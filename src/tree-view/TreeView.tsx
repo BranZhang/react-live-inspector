@@ -106,6 +106,11 @@ export const TreeView = memo(function TreeView({
     estimateSize: () => rowHeight,
     overscan,
     observeElementRect: observeRect,
+    // Measured heights are cached per item key (default: index). Rows shift
+    // index on expand/collapse, so key by the stable node path instead —
+    // otherwise stale heights land on the wrong rows, leaving gaps below some
+    // rows and overlapping text below others.
+    getItemKey: (index) => rows[index].path,
     // Seed a sensible window before the scroll element is measured.
     initialRect: { width: 0, height: numericHeight },
   });

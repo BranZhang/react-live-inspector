@@ -51,13 +51,20 @@ export const TreeNode: FC<any> = memo((props) => {
           : { whiteSpace: 'nowrap' }),
         ...virtualStyle,
       }}>
-      <div style={{ ...styles.treeNodePreviewContainer, paddingLeft }} onClick={onClick}>
+      {/* Flex keeps the arrow in its own column: when the label wraps, the
+          continuation lines hang-indent under the label's first line instead
+          of sliding back to the row's padding edge. */}
+      <div
+        style={{ ...styles.treeNodePreviewContainer, paddingLeft, display: 'flex', alignItems: 'flex-start' }}
+        onClick={onClick}>
         {hasChildren ? (
           <Arrow expanded={expanded} styles={styles.treeNodeArrow} />
         ) : (
           showPlaceholder && <span style={styles.treeNodePlaceholder}>&nbsp;</span>
         )}
-        <NodeRenderer {...props} />
+        <div style={{ flex: '1 1 0', minWidth: 0 }}>
+          <NodeRenderer {...props} />
+        </div>
       </div>
     </div>
   );
