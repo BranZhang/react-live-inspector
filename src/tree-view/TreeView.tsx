@@ -21,6 +21,11 @@ const toNumber = (value: number | string | undefined, fallback: number) => {
   return fallback;
 };
 
+const isScrollable = (el: Element) => {
+  const { overflowY } = getComputedStyle(el);
+  return overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay';
+};
+
 export const TreeView = memo(function TreeView({
   name,
   data,
@@ -43,6 +48,17 @@ export const TreeView = memo(function TreeView({
   // parent to be a flex column with a bounded height. `height`/`maxHeight` are
   // ignored for layout in this mode (still used only as the virtualizer's seed).
   fill = false,
+  // 'self' (default): the inspector is its own scroll container, sized by
+  // `height`/`maxHeight`/`fill`.
+  // 'parent': the inspector grows to its content and virtualization windows
+  // against the nearest scrollable ancestor instead (via scrollMargin). Use
+  // this when an outer panel already owns scrolling: the inspector then never
+  // shows a scrollbar of its own. This also avoids the scrollbar-induced
+  // reflow trap of a near-fit self-scrolled inspector: the scrollbar steals
+  // ~15px of width, wrapped rows get taller, and the (now real) few-pixel
+  // overflow keeps the otherwise useless scrollbar alive.
+  // `height`/`maxHeight`/`fill` are ignored for layout in this mode.
+  scrollContainer = 'self',
 }: Record<string, any>) {
   const styles = useStyles('TreeView');
   const [expandedPaths, setExpandedPaths] = useState<Record<string, boolean>>({});
@@ -86,8 +102,44 @@ export const TreeView = memo(function TreeView({
     [name, data, dataIterator, expandedPaths]
   );
 
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // The list element (role=tree). In 'self' mode it is also the scroll
+  // container; in 'parent' mode it just grows to its content.
+  const listRef = useRef<HTMLDivElement>(null);
+  const usesParentScroll = scrollContainer === 'parent';
   const numericHeight = toNumber(maxHeight ?? height, DEFAULT_HEIGHT);
+
+  // 'parent' mode: nearest scrollable ancestor, resolved after mount.
+  const [parentScroller, setParentScroller] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (!usesParentScroll) {
+      setParentScroller(null);
+      return;
+    }
+    let el: HTMLElement | null = listRef.current?.parentElement ?? null;
+    while (el && !isScrollable(el)) el = el.parentElement;
+    setParentScroller(el ?? (document.scrollingElement as HTMLElement | null));
+  }, [usesParentScroll]);
+
+  // 'parent' mode: distance from the scroller's content origin to the top of
+  // the list. Siblings above the inspector (toolbars, pinned rows) shift it,
+  // so keep it in sync on every commit plus out-of-render size changes.
+  const [scrollMargin, setScrollMargin] = useState(0);
+  const updateScrollMargin = useCallback(() => {
+    const list = listRef.current;
+    const scroller = usesParentScroll ? parentScroller : null;
+    if (!list || !scroller) return;
+    const margin = list.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+    // Sub-pixel jitter must not trigger render loops.
+    setScrollMargin((prev) => (Math.abs(prev - margin) < 1 ? prev : margin));
+  }, [usesParentScroll, parentScroller]);
+  useLayoutEffect(updateScrollMargin);
+  useLayoutEffect(() => {
+    if (!usesParentScroll || !parentScroller || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(updateScrollMargin);
+    observer.observe(parentScroller);
+    if (listRef.current) observer.observe(listRef.current);
+    return () => observer.disconnect();
+  }, [usesParentScroll, parentScroller]);
 
   // Fall back to the configured height whenever the scroll element reports a
   // 0 height. This keeps the inspector usable when it is mounted in a not-yet
@@ -102,10 +154,11 @@ export const TreeView = memo(function TreeView({
 
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
-    getScrollElement: () => scrollRef.current,
+    getScrollElement: () => (usesParentScroll ? parentScroller : listRef.current),
     estimateSize: () => rowHeight,
     overscan,
     observeElementRect: observeRect,
+    scrollMargin: usesParentScroll ? scrollMargin : 0,
     // Measured heights are cached per item key (default: index). Rows shift
     // index on expand/collapse, so key by the stable node path instead —
     // otherwise stale heights land on the wrong rows, leaving gaps below some
@@ -130,12 +183,19 @@ export const TreeView = memo(function TreeView({
   // visually identical, but it restores sub-pixel antialiasing.
   return (
     <div
-      ref={scrollRef}
+      ref={listRef}
       role="tree"
       style={{
         ...styles.treeViewOutline,
-        ...(fill ? { flex: '1 1 0', minHeight: 0 } : { height: toCssSize(height), maxHeight: toCssSize(maxHeight) }),
-        overflow: 'auto',
+        ...(usesParentScroll
+          ? // grows to content; the ancestor owns scrolling
+            null
+          : {
+              ...(fill
+                ? { flex: '1 1 0', minHeight: 0 }
+                : { height: toCssSize(height), maxHeight: toCssSize(maxHeight) }),
+              overflow: 'auto',
+            }),
       }}>
       <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
         {virtualItems.map((virtualRow) => {
@@ -157,7 +217,9 @@ export const TreeView = memo(function TreeView({
                 width: '100%',
                 // Fixed height only in single-line mode; multiline rows size to content.
                 ...(multiline ? null : { height: rowHeight }),
-                transform: `translateY(${virtualRow.start}px)`,
+                // `start` includes scrollMargin in 'parent' mode; positions here
+                // are relative to the list itself.
+                transform: `translateY(${virtualRow.start - (usesParentScroll ? scrollMargin : 0)}px)`,
               }}
             />
           );

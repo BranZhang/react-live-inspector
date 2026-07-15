@@ -14,12 +14,13 @@ This fork targets the following improvements. Status reflects what is actually i
 
 **Features**
 
-- **Large-data support (full virtualization)** — ✅ implemented. The tree is now **fully virtualized** (via [`@tanstack/react-virtual`](https://tanstack.com/virtual)) regardless of node count: only the rows currently on screen are mounted, so expanding very large arrays/objects no longer freezes the UI, and a `data` refresh only re-renders the handful of visible rows (the whole-tree re-render that node-level memoization used to target is no longer possible). The component now owns an internal scroll container — see the new `height`/`maxHeight`/`rowHeight`/`overscan` props below. By default rows are rendered single-line (long values are clipped, not wrapped) so the virtualizer can use a cheap fixed row height; opt into wrapping with the `multiline` prop (rows then size to content via dynamic measurement).
+- **Large-data support (full virtualization)** — ✅ implemented. The tree is now **fully virtualized** (via [`@tanstack/react-virtual`](https://tanstack.com/virtual)) regardless of node count: only the rows currently on screen are mounted, so expanding very large arrays/objects no longer freezes the UI, and a `data` refresh only re-renders the handful of visible rows (the whole-tree re-render that node-level memoization used to target is no longer possible). By default, the component owns an internal scroll container — see the new `height`/`maxHeight`/`rowHeight`/`overscan` props below. It can also virtualize against an existing parent scroll container via `scrollContainer="parent"`. By default rows are rendered single-line (long values are clipped, not wrapped) so the virtualizer can use a cheap fixed row height; opt into wrapping with the `multiline` prop (rows then size to content via dynamic measurement).
 - **Safe "expand all"** — ✅ implemented. A large `expandLevel` is resolved in a single bounded tree walk instead of re-walking the tree once per level, eliminating the upstream O(level × n) cost of fully expanding a deep tree (this is independent of rendering, so virtualization alone does not address it).
 
 **Fixes (vs. upstream)**
 
 - **Expand/collapse state decoupled from `data`** — ✅ implemented. `expandLevel`/`expandPaths` are applied only on mount (and when those props change), not re-asserted on every `data` change, so refreshing the data no longer reopens nodes the user has collapsed. See the _"Verify - collapse persists under refresh"_ Storybook story.
+- **Parent-owned scrolling** — ✅ implemented. `scrollContainer="parent"` lets the nearest scrollable ancestor own scrolling while the inspector still remains fully virtualized. This avoids nested scroll regions and the near-fit scrollbar feedback loop that can occur with `multiline`: an internal scrollbar reduces the available width, wrapped rows become slightly taller, and an otherwise unnecessary scrollbar keeps itself alive.
 
 > **The component API is kept fully compatible with `react-inspector`.** Existing props and components work unchanged — migration is a drop-in replacement.
 
@@ -88,17 +89,19 @@ When `sortObjectKeys={true}` is provided, keys of objects are sorted in alphabet
   nodeRender looks like this:
 
   ```js
-  import { ObjectRootLabel, ObjectLabel } from 'react-live-inspector'
+  import { ObjectRootLabel, ObjectLabel } from 'react-live-inspector';
 
   const defaultNodeRenderer = ({ depth, name, data, isNonenumerable, expanded }) =>
-    depth === 0
-      ? <ObjectRootLabel name={name} data={data} />
-      : <ObjectLabel name={name} data={data} isNonenumerable={isNonenumerable} />;
+    depth === 0 ? (
+      <ObjectRootLabel name={name} data={data} />
+    ) : (
+      <ObjectLabel name={name} data={data} isNonenumerable={isNonenumerable} />
+    );
   ```
 
 #### Virtualization props (this fork)
 
-The tree view is fully virtualized and renders inside an internal scroll container.
+The tree view is fully virtualized and renders inside an internal scroll container by default.
 These optional props are accepted by `<ObjectInspector>`, `<DOMInspector>` and `<Inspector>`:
 
 **`height: PropTypes.oneOfType([PropTypes.number, PropTypes.string])`:** height of the scroll container (numbers are treated as `px`). Defaults to `400`.
@@ -112,6 +115,22 @@ These optional props are accepted by `<ObjectInspector>`, `<DOMInspector>` and `
 **`multiline: PropTypes.bool`:** when `true`, rows wrap (`white-space: normal; word-break: break-word`) instead of being clipped to a single line, restoring the wrapping behaviour of the original `react-inspector`. Row heights are then measured dynamically from the DOM (variable size) rather than using the fixed `rowHeight`, so virtualization is preserved. Defaults to `false` (the cheaper fixed-height path). Enable it when long values need to be fully visible without horizontal scrolling.
 
 **`fill: PropTypes.bool`:** when `true`, the inspector fills the remaining space of a flex container instead of taking an explicit `height` — the scroll region sizes itself via `flex: 1; min-height: 0`, so scrolling stays inside the inspector and a sibling above it (e.g. a search box) is never pushed out into a second scrollbar. Requires the parent to be a flex column with a bounded height. Defaults to `false`. `height`/`maxHeight` are ignored for layout in this mode (still used only as the virtualizer's initial size seed).
+
+**`scrollContainer: PropTypes.oneOf(['self', 'parent'])`:** controls which element owns scrolling. Defaults to `'self'`.
+
+- `'self'`: the inspector is its own scroll container and is sized by `height`, `maxHeight`, or `fill`.
+- `'parent'`: the inspector grows with its content and virtualizes against the nearest ancestor whose vertical overflow is `auto`, `scroll`, or `overlay`. The inspector does not render a scrollbar of its own. `height`, `maxHeight`, and `fill` are ignored for layout in this mode.
+
+Use parent-owned scrolling when the inspector is part of a larger panel that already scrolls, especially with `multiline` rows:
+
+```jsx
+<div style={{ height: 600, overflowY: 'auto' }}>
+  <header>Debug data</header>
+  <Inspector data={data} multiline scrollContainer="parent" />
+</div>
+```
+
+The nearest scrollable ancestor must have a bounded height. Siblings above the inspector are supported; their offset is included when calculating the virtual window.
 
 ### &lt;TableInspector />
 
@@ -141,7 +160,7 @@ import { ObjectInspector, TableInspector } from 'react-live-inspector';
 // or use the shorthand
 import { Inspector } from 'react-live-inspector';
 
-const MyComponent = ({ data }) =>
+const MyComponent = ({ data }) => (
   <div>
     <ObjectInspector data={data} />
     <TableInspector data={data} />
@@ -149,13 +168,13 @@ const MyComponent = ({ data }) =>
     <Inspector data={data} />
     <Inspector table data={data} />
   </div>
-
-let data = { /* ... */ };
-
-ReactDOM.render(
-  <MyComponent data={data} />,
-  document.getElementById('root')
 );
+
+let data = {
+  /* ... */
+};
+
+ReactDOM.render(<MyComponent data={data} />, document.getElementById('root'));
 ```
 
 Try embedding the inspectors inside a component's render() method to provide a live view for its props/state (Works even better with hot reloading).
@@ -180,15 +199,15 @@ By specifying the `theme` prop you can customize the inspectors. `theme` prop ca
 **Example 1:** Using a preset theme:
 
 ```js
-<Inspector theme="chromeDark" data={{a: 'a', b: 'b'}}/>
+<Inspector theme="chromeDark" data={{ a: 'a', b: 'b' }} />
 ```
 
 **Example 2:** changing the tree node indentation by inheriting the chrome light theme:
 
 ```js
-import { chromeLight } from 'react-live-inspector'
+import { chromeLight } from 'react-live-inspector';
 
-<Inspector theme={{...chromeLight, ...({ TREENODE_PADDING_LEFT: 20 })}} data={{a: 'a', b: 'b'}}/>
+<Inspector theme={{ ...chromeLight, ...{ TREENODE_PADDING_LEFT: 20 } }} data={{ a: 'a', b: 'b' }} />;
 ```
 
 ## Caveats

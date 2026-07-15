@@ -46,9 +46,7 @@ export const TreeNode: FC<any> = memo((props) => {
         ...styles.treeNodeBase,
         // Single-line mode clips to one line; multiline mode wraps and breaks
         // long tokens so the dynamic measurement reflects the wrapped height.
-        ...(multiline
-          ? { whiteSpace: 'normal', wordBreak: 'break-word' }
-          : { whiteSpace: 'nowrap' }),
+        ...(multiline ? { whiteSpace: 'normal', wordBreak: 'break-word' } : { whiteSpace: 'nowrap' }),
         ...virtualStyle,
       }}>
       {/* Flex keeps the arrow in its own column: when the label wraps, the
