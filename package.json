@@ -52,6 +52,7 @@
     "build-storybook": "storybook build",
     "chromatic": "chromatic --project-token=17yeg4lpa7q",
     "lint": "eslint src stories",
+    "prepublishOnly": "npm run build && npm test -- --run",
     "release": "auto latest",
     "release:canary": "auto canary",
     "storybook": "storybook dev -p 9001",
