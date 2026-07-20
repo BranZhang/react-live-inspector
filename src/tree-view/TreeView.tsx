@@ -202,7 +202,17 @@ export const TreeView = memo(function TreeView({
           const row = rows[virtualRow.index];
           return (
             <TreeNode
-              key={row.path}
+              // Keyed by row INDEX, not path, so the DOM is recycled. Under
+              // live refresh a structural change above the viewport (array
+              // grew/shrank, key renamed) shifts which path sits at each
+              // visible index; keying by path would unmount/remount every
+              // shifted row each tick — thousands of detached DOM nodes per
+              // second waiting for GC. With index keys the ~30 mounted rows
+              // are stable slots whose content updates in place. TreeNode is
+              // stateless, so reuse across different logical rows is safe.
+              // (Height-measurement caching stays keyed by path via
+              // getItemKey above — unaffected.)
+              key={virtualRow.index}
               {...row}
               nodeRenderer={nodeRenderer}
               multiline={multiline}

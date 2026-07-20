@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { Inspector } from '../src';
+import { makeRandomJson } from './randomJson';
 
 // Demos specific to this fork (`react-live-inspector`): high-frequency refresh,
 // full virtualization, safe "expand all", and expand/collapse state decoupled
@@ -110,32 +111,17 @@ export const PerfRichLeaf = {
 };
 
 // ---- Perf: high-frequency refresh (~10 Hz) ----
-// Simulates live data: every `intervalMs` we produce a NEW object (same shape,
-// changed values) and feed it to <Inspector>. This is the defect-A scenario:
-// a new `data` reference re-renders every visible node. A React <Profiler>
-// overlay reports the real commit duration so you can watch it live; also open
-// DevTools Performance / React Profiler while it runs.
+// Simulates live data: every tick we generate a NEW random-JSON document (see
+// ./randomJson.js) and feed it to <Inspector>. Unlike a same-shape refresh,
+// this one also rotates object keys, grows/shrinks array lengths, and nests
+// object arrays several levels deep — the messy end of the live-feed spectrum.
+// Note: expansion state is keyed by node path and seeded once, so a rotated
+// key (or a newly grown array index) shows up as a fresh, collapsed node —
+// that's the "expand/collapse decoupled from data" behavior working as
+// intended. A React <Profiler> overlay reports the real commit duration so
+// you can watch it live; also open DevTools Performance / React Profiler.
 
-// Build a tree whose numeric leaves we mutate each tick. `breadth^depth` leaves.
-const makeLiveTree = (depth, breadth, t, c = { n: 0 }) => {
-  if (depth <= 0) {
-    const i = c.n++;
-    return {
-      id: i,
-      // values that change every tick:
-      value: +Math.sin((i + t) / 5).toFixed(4),
-      speed: (i * 7 + t) % 100,
-      flag: (i + t) % 2 === 0,
-      label: `node-${i}`,
-      vec: [i + t, i - t, (i * t) % 13],
-    };
-  }
-  const node = { id: c.n++, children: [] };
-  for (let b = 0; b < breadth; b++) node.children.push(makeLiveTree(depth - 1, breadth, t, c));
-  return node;
-};
-
-const HighFrequencyDemo = ({ hz = 10, depth = 3, breadth = 4, expandLevel = 12 }) => {
+const HighFrequencyDemo = ({ hz = 10, gen, expandLevel = 12 }) => {
   const [tick, setTick] = React.useState(0);
   const stats = React.useRef({ commits: 0, total: 0, last: 0, max: 0 });
   const [, force] = React.useState(0);
@@ -145,7 +131,7 @@ const HighFrequencyDemo = ({ hz = 10, depth = 3, breadth = 4, expandLevel = 12 }
     return () => clearInterval(id);
   }, [hz]);
 
-  const data = React.useMemo(() => makeLiveTree(depth, breadth, tick), [tick, depth, breadth]);
+  const { data, nodeCount } = React.useMemo(() => makeRandomJson(tick, gen), [tick, gen]);
 
   const onRender = (_id, _phase, actualDuration) => {
     const s = stats.current;
@@ -163,7 +149,6 @@ const HighFrequencyDemo = ({ hz = 10, depth = 3, breadth = 4, expandLevel = 12 }
 
   const s = stats.current;
   const avg = s.commits ? (s.total / s.commits).toFixed(2) : '0';
-  const leaves = Math.pow(breadth, depth);
 
   return (
     <div>
@@ -176,8 +161,8 @@ const HighFrequencyDemo = ({ hz = 10, depth = 3, breadth = 4, expandLevel = 12 }
           marginBottom: 8,
           borderRadius: 4,
         }}>
-        refresh: {hz} Hz &nbsp;|&nbsp; tree: {depth}×{breadth} (~{leaves} leaves) &nbsp;|&nbsp; commits: {s.commits}{' '}
-        &nbsp;|&nbsp; last: {s.last.toFixed(2)} ms &nbsp;|&nbsp; avg: {avg} ms &nbsp;|&nbsp; max: {s.max.toFixed(2)} ms
+        refresh: {hz} Hz &nbsp;|&nbsp; nodes: {nodeCount} &nbsp;|&nbsp; commits: {s.commits} &nbsp;|&nbsp; last:{' '}
+        {s.last.toFixed(2)} ms &nbsp;|&nbsp; avg: {avg} ms &nbsp;|&nbsp; max: {s.max.toFixed(2)} ms
         <br />
         <span style={{ color: s.last > 1000 / hz ? '#f55' : '#0f0' }}>
           {s.last > 1000 / hz ? '⚠ commit longer than frame budget — dropping frames' : 'within frame budget'}
@@ -190,14 +175,19 @@ const HighFrequencyDemo = ({ hz = 10, depth = 3, breadth = 4, expandLevel = 12 }
   );
 };
 
+// Module-constant generator options so the useMemo dep stays referentially
+// stable across renders. The live node count is shown in the overlay.
+const GEN_SMALL = { maxDepth: 2, minKeys: 3, maxKeys: 5, minLen: 2, maxLen: 4 };
+const GEN_LARGE = { maxDepth: 3, minKeys: 3, maxKeys: 6, minLen: 2, maxLen: 6 };
+
 export const PerfRefresh10Hz = {
-  render: () => <HighFrequencyDemo hz={10} depth={3} breadth={4} />,
-  name: 'Perf - live refresh 10 Hz (~700 nodes)',
+  render: () => <HighFrequencyDemo hz={10} gen={GEN_SMALL} />,
+  name: 'Perf - live random JSON 10 Hz (small)',
 };
 
 export const PerfRefresh10HzLarge = {
-  render: () => <HighFrequencyDemo hz={10} depth={4} breadth={5} />,
-  name: 'Perf - live refresh 10 Hz (~6.7k nodes)',
+  render: () => <HighFrequencyDemo hz={10} gen={GEN_LARGE} />,
+  name: 'Perf - live random JSON 10 Hz (large)',
 };
 
 // ---- Verify: collapse state survives high-frequency refresh ----

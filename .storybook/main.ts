@@ -1,5 +1,5 @@
 export default {
-  stories: ['../stories/*.*'],
+  stories: ['../stories/*.stories.*'],
 
   framework: {
     name: '@storybook/react-vite',
