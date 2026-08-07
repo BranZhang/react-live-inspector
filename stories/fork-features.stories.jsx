@@ -190,6 +190,91 @@ export const PerfRefresh10HzLarge = {
   name: 'Perf - live random JSON 10 Hz (large)',
 };
 
+// ---- Perf: large live JSON with variable-height strings ----
+// This deliberately changes row heights while the virtualizer is recycling
+// visible rows. Some message fields are very long single lines, while others
+// contain real newline characters. The text category rotates on every tick so
+// the same path can repeatedly grow and shrink during a high-frequency feed.
+const LONG_TEXT =
+  'A deliberately long, unbroken stream of diagnostic text used to exercise wrapping and dynamic row measurement. '.repeat(
+    40
+  );
+const MULTILINE_TEXT = [
+  'request accepted',
+  'processing stage: decode payload',
+  'warning: upstream timestamp is older than the current frame',
+  'stack:',
+  '  at decodeMessage (decoder.js:128:17)',
+  '  at updateSnapshot (store.js:64:9)',
+  '  at renderFrame (viewer.js:241:5)',
+].join('\n');
+
+const makeLargeStringJson = (tick, recordCount) => ({
+  tick,
+  updatedAt: new Date().toISOString(),
+  records: Array.from({ length: recordCount }, (_, index) => {
+    const textKind = (index + tick) % 12;
+    const message =
+      textKind === 0
+        ? `${MULTILINE_TEXT}\nrecord: ${index}\ntick: ${tick}`
+        : textKind <= 2
+          ? `${LONG_TEXT} record=${index} tick=${tick}`
+          : `record ${index} refreshed at tick ${tick}`;
+
+    return {
+      id: `record-${index}`,
+      status: (index + tick) % 5 === 0 ? 'warning' : 'ready',
+      message,
+      detail: {
+        source: `sensor-${index % 32}`,
+        sequence: tick * recordCount + index,
+        metrics: {
+          latencyMs: (tick * 17 + index * 7) % 250,
+          confidence: +(((tick + index) % 100) / 100).toFixed(2),
+        },
+        tags: [`group-${index % 10}`, `partition-${index % 4}`, `tick-${tick}`],
+      },
+    };
+  }),
+});
+
+const LargeStringRefreshDemo = ({ hz = 10, recordCount = 1000 }) => {
+  const [tick, setTick] = React.useState(0);
+
+  React.useEffect(() => {
+    const id = setInterval(() => setTick((value) => value + 1), Math.round(1000 / hz));
+    return () => clearInterval(id);
+  }, [hz]);
+
+  const data = React.useMemo(() => makeLargeStringJson(tick, recordCount), [tick, recordCount]);
+
+  return (
+    <div>
+      <div
+        style={{
+          font: '12px/1.6 monospace',
+          background: '#111',
+          color: '#0f0',
+          padding: '8px 12px',
+          marginBottom: 8,
+          borderRadius: 4,
+        }}>
+        refresh: {hz} Hz &nbsp;|&nbsp; records: {recordCount.toLocaleString()} &nbsp;|&nbsp; tick: {tick}
+        <br />
+        <span style={{ color: '#fd0' }}>
+          Every tick rotates message fields between short, very long, and explicit multiline strings.
+        </span>
+      </div>
+      <Inspector data={data} expandLevel={5} multiline height={600} />
+    </div>
+  );
+};
+
+export const PerfRefresh10HzLargeLongAndMultilineStrings = {
+  render: () => <LargeStringRefreshDemo hz={10} recordCount={1000} />,
+  name: 'Perf - large JSON 10 Hz (long + multiline strings)',
+};
+
 // ---- Verify: collapse state survives high-frequency refresh ----
 // Regression demo for the "expandPaths/expandLevel re-applied on every data
 // change" bug. The tree starts fully expanded and its values change ~3×/sec.

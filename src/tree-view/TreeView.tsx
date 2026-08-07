@@ -101,6 +101,7 @@ export const TreeView = memo(function TreeView({
     () => flattenTree(name, data, dataIterator, expandedPaths),
     [name, data, dataIterator, expandedPaths]
   );
+  const getItemKey = useCallback((index: number) => rows[index]?.path ?? index, [rows]);
 
   // The list element (role=tree). In 'self' mode it is also the scroll
   // container; in 'parent' mode it just grows to its content.
@@ -163,10 +164,129 @@ export const TreeView = memo(function TreeView({
     // index on expand/collapse, so key by the stable node path instead —
     // otherwise stale heights land on the wrong rows, leaving gaps below some
     // rows and overlapping text below others.
-    getItemKey: (index) => rows[index].path,
+    getItemKey,
     // Seed a sensible window before the scroll element is measured.
     initialRect: { width: 0, height: numericHeight },
   });
+
+  // React intentionally keys rows by virtual index so live structural updates
+  // recycle mounted DOM slots. Height measurements, however, belong to the
+  // logical row path. A recycled slot does not re-run a stable callback ref
+  // when its path changes, leaving TanStack's element cache associated with
+  // the previous path until ResizeObserver happens to report a size change.
+  // During high-frequency multiline updates that delay is enough for following
+  // rows to retain stale offsets and overlap.
+  //
+  // Observe the recycled slots ourselves and batch resizeItem writes into the
+  // next animation frame. resizeItem resolves the current path for the slot's
+  // index, preserving index-based DOM reuse without measuring synchronously in
+  // React's ref commit (which can cause nested-update loops).
+  const virtualizerRef = useRef(rowVirtualizer);
+  virtualizerRef.current = rowVirtualizer;
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const measuredNodesRef = useRef(new Map<number, HTMLDivElement>());
+  const measuredPathsRef = useRef(new Map<number, string | undefined>());
+  const measureRefCallbacksRef = useRef(new Map<number, (node: HTMLDivElement | null) => void>());
+  const measurementObserverRef = useRef<ResizeObserver | null>(null);
+  const pendingMeasurementsRef = useRef(new Map<HTMLDivElement, number | null>());
+  const measurementFrameRef = useRef<number | null>(null);
+
+  const flushMeasurements = useCallback(() => {
+    measurementFrameRef.current = null;
+    const pending = Array.from(pendingMeasurementsRef.current.entries());
+    pendingMeasurementsRef.current.clear();
+
+    for (const [node, observedSize] of pending) {
+      const index = Number(node.dataset.index);
+      if (!Number.isInteger(index) || measuredNodesRef.current.get(index) !== node || !node.isConnected) continue;
+      const size = observedSize ?? node.getBoundingClientRect().height;
+      if (Number.isFinite(size)) virtualizerRef.current.resizeItem(index, size);
+    }
+  }, []);
+
+  const scheduleMeasurements = useCallback(() => {
+    if (measurementFrameRef.current !== null) return;
+    measurementFrameRef.current = window.requestAnimationFrame(flushMeasurements);
+  }, [flushMeasurements]);
+
+  const getMeasureRef = useCallback(
+    (index: number) => {
+      let callback = measureRefCallbacksRef.current.get(index);
+      if (callback) return callback;
+
+      callback = (node: HTMLDivElement | null) => {
+        const previousNode = measuredNodesRef.current.get(index);
+        if (previousNode && previousNode !== node) {
+          measurementObserverRef.current?.unobserve(previousNode);
+          pendingMeasurementsRef.current.delete(previousNode);
+        }
+
+        if (!node) {
+          measuredNodesRef.current.delete(index);
+          measuredPathsRef.current.delete(index);
+          measureRefCallbacksRef.current.delete(index);
+          return;
+        }
+
+        measuredNodesRef.current.set(index, node);
+        measureRefCallbacksRef.current.set(index, callback!);
+        measuredPathsRef.current.set(index, rowsRef.current[index]?.path);
+        measurementObserverRef.current?.observe(node);
+        pendingMeasurementsRef.current.set(node, null);
+        scheduleMeasurements();
+      };
+      measureRefCallbacksRef.current.set(index, callback);
+      return callback;
+    },
+    [scheduleMeasurements]
+  );
+
+  useLayoutEffect(() => {
+    if (!multiline || typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const node = entry.target as HTMLDivElement;
+        const borderSize = Array.isArray(entry.borderBoxSize) ? entry.borderBoxSize[0] : entry.borderBoxSize;
+        const size = borderSize?.blockSize ?? entry.contentRect.height;
+        pendingMeasurementsRef.current.set(node, size);
+      }
+      scheduleMeasurements();
+    });
+    measurementObserverRef.current = observer;
+
+    for (const node of measuredNodesRef.current.values()) {
+      observer.observe(node);
+      pendingMeasurementsRef.current.set(node, null);
+    }
+    scheduleMeasurements();
+
+    return () => {
+      observer.disconnect();
+      measurementObserverRef.current = null;
+      pendingMeasurementsRef.current.clear();
+      if (measurementFrameRef.current !== null) {
+        window.cancelAnimationFrame(measurementFrameRef.current);
+        measurementFrameRef.current = null;
+      }
+    };
+  }, [multiline, scheduleMeasurements]);
+
+  // A stable index slot keeps the same ref when a refresh changes its logical
+  // path. Explicitly queue that slot so the new path receives its actual size.
+  useLayoutEffect(() => {
+    if (!multiline) return;
+    let needsMeasurement = false;
+    for (const [index, node] of measuredNodesRef.current) {
+      const path = rows[index]?.path;
+      if (measuredPathsRef.current.get(index) === path) continue;
+      measuredPathsRef.current.set(index, path);
+      pendingMeasurementsRef.current.set(node, null);
+      needsMeasurement = true;
+    }
+    if (needsMeasurement) scheduleMeasurements();
+  }, [rows, multiline, scheduleMeasurements]);
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
@@ -218,7 +338,7 @@ export const TreeView = memo(function TreeView({
               multiline={multiline}
               dataIndex={virtualRow.index}
               // In multiline mode the row height is measured from the DOM.
-              measureRef={multiline ? rowVirtualizer.measureElement : undefined}
+              measureRef={multiline ? getMeasureRef(virtualRow.index) : undefined}
               onClick={() => row.hasChildren && toggleExpand(row.path)}
               virtualStyle={{
                 position: 'absolute',
