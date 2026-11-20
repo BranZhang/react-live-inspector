@@ -5,6 +5,12 @@ export interface FlatTreeRow {
   data: any;
   depth: number;
   path: string;
+  /**
+   * Unambiguous key path from the root: the raw iterator names in walk order.
+   * Unlike `path` (a dot-joined string), names containing dots or non-string
+   * map keys stay distinguishable. The root row has an empty array.
+   */
+  keyPath: unknown[];
   expanded: boolean;
   hasChildren: boolean;
   // any extra props yielded by the iterator (e.g. isNonenumerable, isCloseTag)
@@ -28,20 +34,20 @@ export function flattenTree(
 ): FlatTreeRow[] {
   const rows: FlatTreeRow[] = [];
 
-  const walk = (name: any, data: any, depth: number, path: string, extra: Record<string, any>) => {
+  const walk = (name: any, data: any, depth: number, path: string, keyPath: unknown[], extra: Record<string, any>) => {
     const hasChildren = hasChildNodes(data, dataIterator);
     const expanded = hasChildren && !!expandedPaths[path];
 
-    rows.push({ name, data, depth, path, expanded, hasChildren, ...extra });
+    rows.push({ name, data, depth, path, keyPath, expanded, hasChildren, ...extra });
 
     if (expanded) {
       for (const { name: childName, data: childData, ...rest } of dataIterator(data)) {
-        walk(childName, childData, depth + 1, `${path}.${childName}`, rest);
+        walk(childName, childData, depth + 1, `${path}.${childName}`, [...keyPath, childName], rest);
       }
     }
   };
 
-  walk(name, data, 0, DEFAULT_ROOT_PATH, {});
+  walk(name, data, 0, DEFAULT_ROOT_PATH, [], {});
 
   return rows;
 }

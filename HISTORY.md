@@ -1,5 +1,8 @@
 # react-live-inspector
 
+## 8.4.0 (11/20/2026)
+- Each flattened row (and thus the `nodeRenderer` props) now also carries `keyPath`: the unambiguous array of raw iterator names from the root. Unlike the dot-joined `path` string, names containing dots and non-string map keys stay distinguishable. The root row has an empty array.
+
 ## 8.0.0 (06/05/2026)
 - Forked from [`react-inspector`](https://github.com/storybookjs/react-inspector) (MIT, by Xiaoyi Chen), tuned for high-frequency `data` refresh (live/streaming previews).
 - **Full virtualization** of the tree via [`@tanstack/react-virtual`](https://tanstack.com/virtual): only on-screen rows mount, so very large arrays/objects no longer freeze the UI and a `data` refresh re-renders just the visible rows. The component now owns an internal scroll container — new `height`/`maxHeight`/`rowHeight`/`overscan` props. Trade-off: rows render single-line (long values no longer wrap).
