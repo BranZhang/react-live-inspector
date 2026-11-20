@@ -60,4 +60,15 @@ describe('flattenTree', () => {
     const rows = flattenTree(undefined, { a: 1 }, extraIterator, { $: true });
     expect(rows.find((r) => r.path === '$.a')!.isNonenumerable).toBe(true);
   });
+
+  it('carries the raw key path of each row', () => {
+    const rows = flattenTree(undefined, data, objectIterator, { $: true, '$.a': true });
+    expect(rows.map((r) => r.keyPath)).toEqual([[], ['a'], ['a', 'b'], ['a', 'c'], ['d'], ['e']]);
+  });
+
+  it('keeps dotted names unambiguous in keyPath', () => {
+    const dotted = { 'a.b': { c: 1 } };
+    const rows = flattenTree(undefined, dotted, objectIterator, { $: true, '$.a.b': true });
+    expect(rows.map((r) => r.keyPath)).toEqual([[], ['a.b'], ['a.b', 'c']]);
+  });
 });
